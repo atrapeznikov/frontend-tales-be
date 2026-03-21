@@ -23,9 +23,9 @@ import { UsersModule } from '../users';
     AuthService,
     JwtStrategy,
     JwtRefreshStrategy,
-    GoogleStrategy,
-    GithubStrategy,
-    YandexStrategy,
+    // GoogleStrategy,
+    // GithubStrategy,
+    // YandexStrategy,
   ],
   exports: [AuthService],
 })
