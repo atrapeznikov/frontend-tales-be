@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma';
 import { RedisModule } from './redis';
 import { AuthModule } from './auth';
 import { UsersModule } from './users';
+import { ArticlesModule } from './articles';
 import { JwtAuthGuard } from './auth/guards';
 import { RolesGuard } from './auth/guards';
 
@@ -22,6 +23,7 @@ import { RolesGuard } from './auth/guards';
     ]),
     AuthModule,
     UsersModule,
+    ArticlesModule,
   ],
   providers: [
     {

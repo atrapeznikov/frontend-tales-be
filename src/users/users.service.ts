@@ -40,12 +40,15 @@ export class UsersService {
       ? await bcrypt.hash(data.password, 12)
       : null;
 
+    const role = 'USER';
+
     return this.prisma.user.create({
       data: {
         email: data.email,
         passwordHash,
         displayName: data.displayName,
         avatarUrl: data.avatarUrl,
+        role,
       },
     });
   }
@@ -100,11 +103,15 @@ export class UsersService {
     }
 
     // 3. Create new user + OAuth account
+    const usersCount = await this.prisma.user.count();
+    const role = usersCount === 0 ? 'ADMIN' : 'USER';
+
     return this.prisma.user.create({
       data: {
         email: profile.email,
         displayName: profile.displayName,
         avatarUrl: profile.avatarUrl,
+        role,
         oauthAccounts: {
           create: {
             provider: profile.provider,

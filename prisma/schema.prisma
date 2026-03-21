@@ -89,3 +89,32 @@ model Lesson {
   @@index([courseId, sortOrder])
   @@map("lessons")
 }
+
+model Article {
+  id            String        @id @default(uuid()) @db.Uuid
+  title         String
+  slug          String        @unique
+  description   String        @db.Text
+  content       String        @db.Text
+  coverImageUrl String?       @map("cover_image_url")
+  status        ContentStatus @default(DRAFT)
+  viewCount     Int           @default(0) @map("view_count")
+  publishedAt   DateTime?     @map("published_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  tags Tag[] @relation("ArticleTags")
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@map("articles")
+}
+
+model Tag {
+  id   String @id @default(uuid()) @db.Uuid
+  name String @unique
+  slug String @unique
+
+  articles Article[] @relation("ArticleTags")
+
+  @@map("tags")
+}
