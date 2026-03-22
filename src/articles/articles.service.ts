@@ -68,16 +68,20 @@ export class ArticlesService {
     return article;
   }
 
-  async findAll(filter: ArticleFilterDto) {
+  async findAll(filter: ArticleFilterDto, isAdmin: boolean = false) {
     const { page = 1, limit = 10, tag, status } = filter;
     
     // Check cache
-    const cacheKey = `articles:list:${page}:${limit}:${tag || 'all'}:${status || 'all'}`;
+    const cacheKey = `articles:list:${page}:${limit}:${tag || 'all'}:${status || 'all'}:admin_${isAdmin}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
     const where: any = {};
     if (status) where.status = status;
+
+    if (!isAdmin) {
+      where.status = 'PUBLISHED';
+    }
     if (tag) {
       where.tags = { some: { slug: tag } };
     }
@@ -107,8 +111,8 @@ export class ArticlesService {
     return result;
   }
 
-  async findBySlug(slug: string) {
-    const cacheKey = `articles:slug:${slug}`;
+  async findBySlug(slug: string, isAdmin: boolean = false) {
+    const cacheKey = `articles:slug:${slug}:admin_${isAdmin}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
@@ -118,6 +122,10 @@ export class ArticlesService {
     });
 
     if (!article) throw new NotFoundException('Article not found');
+
+    if (!isAdmin && article.status !== 'PUBLISHED') {
+      throw new NotFoundException('Article not found');
+    }
 
     await this.redis.set(cacheKey, JSON.stringify(article), 600); // 10 minutes
     return article;

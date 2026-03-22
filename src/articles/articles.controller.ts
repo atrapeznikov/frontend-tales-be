@@ -13,7 +13,7 @@ import { ArticlesService } from './articles.service.js';
 import { CreateArticleDto, CreateTagDto } from './dto/create-article.dto.js';
 import { UpdateArticleDto, UpdateTagDto } from './dto/update-article.dto.js';
 import { ArticleFilterDto } from './dto/article-filter.dto.js';
-import { Public, Roles } from '../common/decorators/index.js';
+import { Public, Roles, CurrentUser } from '../common/decorators/index.js';
 
 @ApiTags('Articles')
 @Controller('articles')
@@ -66,19 +66,17 @@ export class ArticlesController {
   @Get()
   @Public()
   @ApiOperation({ summary: 'Get all articles with pagination and filters' })
-  findAll(@Query() filter: ArticleFilterDto) {
-    // If not admin and no status provided, only show PUBLISHED
-    // Note: To truly securely enforce this, we might need to check req.user role,
-    // but for now, we leave it to the service or explicitly override here in the controller logic if needed.
-    // Let's force PUBLISHED logic in service if we wanted, but passing filter allows ADMIN to override.
-    return this.articlesService.findAll(filter);
+  findAll(@Query() filter: ArticleFilterDto, @CurrentUser() user: any) {
+    const isAdmin = user?.role === 'ADMIN';
+    return this.articlesService.findAll(filter, isAdmin);
   }
 
   @Get(':slug')
   @Public()
   @ApiOperation({ summary: 'Get article by slug' })
-  findBySlug(@Param('slug') slug: string) {
-    return this.articlesService.findBySlug(slug);
+  findBySlug(@Param('slug') slug: string, @CurrentUser() user: any) {
+    const isAdmin = user?.role === 'ADMIN';
+    return this.articlesService.findBySlug(slug, isAdmin);
   }
 
   @Patch(':id')
