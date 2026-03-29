@@ -1,9 +1,15 @@
-import { IsOptional, IsString, IsEnum, IsInt, Min, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsEnum, IsInt, Min, IsIn } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ContentStatus } from './create-article.dto.js';
 import { Type } from 'class-transformer';
 
 export class ArticleFilterDto {
+  @ApiPropertyOptional({ description: 'Language code (en or ru)', example: 'ru' })
+  @IsString()
+  @IsIn(['en', 'ru'])
+  @IsOptional()
+  language?: string;
+
   @ApiPropertyOptional({ description: 'Filter by tag slug' })
   @IsString()
   @IsOptional()

@@ -92,10 +92,7 @@ model Lesson {
 
 model Article {
   id            String        @id @default(uuid()) @db.Uuid
-  title         String
   slug          String        @unique
-  description   String        @db.Text
-  content       String        @db.Text
   coverImageUrl String?       @map("cover_image_url")
   status        ContentStatus @default(DRAFT)
   viewCount     Int           @default(0) @map("view_count")
@@ -103,10 +100,26 @@ model Article {
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
-  tags Tag[] @relation("ArticleTags")
+  translations ArticleTranslation[]
+  tags         Tag[]                @relation("ArticleTags")
 
   @@index([status, publishedAt(sort: Desc)])
   @@map("articles")
+}
+
+model ArticleTranslation {
+  id          String @id @default(uuid()) @db.Uuid
+  articleId   String @map("article_id") @db.Uuid
+  language    String @db.VarChar(2)
+  title       String
+  description String @db.Text
+  content     String @db.Text
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, language])
+  @@index([language])
+  @@map("article_translations")
 }
 
 model Tag {

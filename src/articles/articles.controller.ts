@@ -8,7 +8,7 @@ import {
   Delete,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ArticlesService } from './articles.service.js';
 import { CreateArticleDto, CreateTagDto } from './dto/create-article.dto.js';
 import { UpdateArticleDto, UpdateTagDto } from './dto/update-article.dto.js';
@@ -58,7 +58,7 @@ export class ArticlesController {
   @Post()
   @ApiBearerAuth()
   @Roles('ADMIN')
-  @ApiOperation({ summary: 'Create a new article (Admin)' })
+  @ApiOperation({ summary: 'Create a new article with translations (Admin)' })
   create(@Body() dto: CreateArticleDto) {
     return this.articlesService.create(dto);
   }
@@ -74,15 +74,20 @@ export class ArticlesController {
   @Get(':slug')
   @Public()
   @ApiOperation({ summary: 'Get article by slug' })
-  findBySlug(@Param('slug') slug: string, @CurrentUser() user: any) {
+  @ApiQuery({ name: 'language', required: false, description: 'Language code (en or ru)' })
+  findBySlug(
+    @Param('slug') slug: string,
+    @Query('language') language: string,
+    @CurrentUser() user: any,
+  ) {
     const isAdmin = user?.role === 'ADMIN';
-    return this.articlesService.findBySlug(slug, isAdmin);
+    return this.articlesService.findBySlug(slug, isAdmin, language);
   }
 
   @Patch(':id')
   @ApiBearerAuth()
   @Roles('ADMIN')
-  @ApiOperation({ summary: 'Update article (Admin)' })
+  @ApiOperation({ summary: 'Update article with translations (Admin)' })
   update(@Param('id') id: string, @Body() dto: UpdateArticleDto) {
     return this.articlesService.update(id, dto);
   }
