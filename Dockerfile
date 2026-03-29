@@ -20,6 +20,8 @@ RUN npm run build
 # Production stage
 FROM node:22-alpine
 
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 # Copy only production dependencies to keep image small
@@ -27,9 +29,8 @@ COPY package*.json ./
 COPY prisma ./prisma/
 RUN npm ci --omit=dev
 
-# Copy generated Prisma client
-COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+# Regenerate Prisma client for this runtime
+RUN npx prisma generate
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
