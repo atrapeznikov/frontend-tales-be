@@ -1,5 +1,6 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsArray, IsUrl, IsUUID } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEnum, IsArray, IsUrl, ValidateNested, ArrayMinSize, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export enum ContentStatus {
   DRAFT = 'DRAFT',
@@ -18,16 +19,16 @@ export class CreateTagDto {
   slug: string;
 }
 
-export class CreateArticleDto {
+export class TranslationDto {
+  @ApiProperty({ example: 'en', description: 'Language code (en or ru)' })
+  @IsString()
+  @IsIn(['en', 'ru'])
+  language: string;
+
   @ApiProperty({ example: 'How to use React', description: 'Article title' })
   @IsString()
   @IsNotEmpty()
   title: string;
-
-  @ApiProperty({ example: 'how-to-use-react', description: 'URL-friendly slug' })
-  @IsString()
-  @IsNotEmpty()
-  slug: string;
 
   @ApiProperty({ example: 'A brief introduction to React...', description: 'Short description for SEO and article lists' })
   @IsString()
@@ -38,6 +39,13 @@ export class CreateArticleDto {
   @IsString()
   @IsNotEmpty()
   content: string;
+}
+
+export class CreateArticleDto {
+  @ApiProperty({ example: 'how-to-use-react', description: 'URL-friendly slug' })
+  @IsString()
+  @IsNotEmpty()
+  slug: string;
 
   @ApiPropertyOptional({ example: 'https://example.com/cover.png', description: 'Cover image URL' })
   @IsUrl()
@@ -54,4 +62,11 @@ export class CreateArticleDto {
   @IsString({ each: true })
   @IsOptional()
   tags?: string[];
+
+  @ApiProperty({ type: [TranslationDto], description: 'Article translations (at least one)' })
+  @ValidateNested({ each: true })
+  @Type(() => TranslationDto)
+  @IsArray()
+  @ArrayMinSize(1)
+  translations: TranslationDto[];
 }

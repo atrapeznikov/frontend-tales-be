@@ -41,15 +41,24 @@ export class ArticlesService {
   // ─── Articles ─────────────────────────────────────────────────────────
 
   async create(dto: CreateArticleDto) {
-    const { tags, ...articleData } = dto;
-    
+    const { tags, translations, ...articleData } = dto;
+
     const existing = await this.prisma.article.findUnique({ where: { slug: dto.slug } });
     if (existing) throw new ConflictException('Article with this slug already exists');
 
-    const data: any = { ...articleData };
+    const data: any = {
+      ...articleData,
+      translations: {
+        create: translations.map(t => ({
+          language: t.language,
+          title: t.title,
+          description: t.description,
+          content: t.content,
+        })),
+      },
+    };
 
     if (tags && tags.length > 0) {
-      // Connect existing tags by slug
       data.tags = {
         connect: tags.map((slug) => ({ slug })),
       };
@@ -61,7 +70,7 @@ export class ArticlesService {
 
     const article = await this.prisma.article.create({
       data,
-      include: { tags: true },
+      include: { translations: true, tags: true },
     });
 
     await this.invalidateArticlesCache();
@@ -69,10 +78,9 @@ export class ArticlesService {
   }
 
   async findAll(filter: ArticleFilterDto, isAdmin: boolean = false) {
-    const { page = 1, limit = 10, tag, status } = filter;
-    
-    // Check cache
-    const cacheKey = `articles:list:${page}:${limit}:${tag || 'all'}:${status || 'all'}:admin_${isAdmin}`;
+    const { page = 1, limit = 10, tag, status, language } = filter;
+
+    const cacheKey = `articles:list:${page}:${limit}:${tag || 'all'}:${status || 'all'}:${language || 'all'}:admin_${isAdmin}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
@@ -86,10 +94,19 @@ export class ArticlesService {
       where.tags = { some: { slug: tag } };
     }
 
+    // If language is specified, only return articles that have a translation in that language
+    if (language) {
+      where.translations = { some: { language } };
+    }
+
+    const translationsInclude = language
+      ? { where: { language } }
+      : true;
+
     const [items, total] = await Promise.all([
       this.prisma.article.findMany({
         where,
-        include: { tags: true },
+        include: { translations: translationsInclude, tags: true },
         orderBy: { publishedAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -107,18 +124,22 @@ export class ArticlesService {
       },
     };
 
-    await this.redis.set(cacheKey, JSON.stringify(result), 300); // 5 minutes
+    await this.redis.set(cacheKey, JSON.stringify(result), 300);
     return result;
   }
 
-  async findBySlug(slug: string, isAdmin: boolean = false) {
-    const cacheKey = `articles:slug:${slug}:admin_${isAdmin}`;
+  async findBySlug(slug: string, isAdmin: boolean = false, language?: string) {
+    const cacheKey = `articles:slug:${slug}:${language || 'all'}:admin_${isAdmin}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
+    const translationsInclude = language
+      ? { where: { language } }
+      : true;
+
     const article = await this.prisma.article.findUnique({
       where: { slug },
-      include: { tags: true },
+      include: { translations: translationsInclude, tags: true },
     });
 
     if (!article) throw new NotFoundException('Article not found');
@@ -127,12 +148,12 @@ export class ArticlesService {
       throw new NotFoundException('Article not found');
     }
 
-    await this.redis.set(cacheKey, JSON.stringify(article), 600); // 10 minutes
+    await this.redis.set(cacheKey, JSON.stringify(article), 600);
     return article;
   }
 
   async update(id: string, dto: UpdateArticleDto) {
-    const { tags, ...articleData } = dto;
+    const { tags, translations, ...articleData } = dto;
     const data: any = { ...articleData };
 
     if (tags) {
@@ -148,10 +169,35 @@ export class ArticlesService {
       data.publishedAt = new Date();
     }
 
+    // Update translations using upsert
+    if (translations && translations.length > 0) {
+      await Promise.all(
+        translations.map(t =>
+          this.prisma.articleTranslation.upsert({
+            where: {
+              articleId_language: { articleId: id, language: t.language },
+            },
+            create: {
+              articleId: id,
+              language: t.language,
+              title: t.title,
+              description: t.description,
+              content: t.content,
+            },
+            update: {
+              title: t.title,
+              description: t.description,
+              content: t.content,
+            },
+          }),
+        ),
+      );
+    }
+
     const updated = await this.prisma.article.update({
       where: { id },
       data,
-      include: { tags: true },
+      include: { translations: true, tags: true },
     });
 
     await this.invalidateArticlesCache(updated.slug);
@@ -164,7 +210,7 @@ export class ArticlesService {
 
     await this.prisma.article.delete({ where: { id } });
     await this.invalidateArticlesCache(article.slug);
-    
+
     return { success: true };
   }
 
@@ -173,18 +219,17 @@ export class ArticlesService {
       where: { slug },
       data: { viewCount: { increment: 1 } },
     });
-    
-    // Invalidate specific article cache to reflect new view count
-    await this.redis.del(`articles:slug:${slug}`);
-    
+
+    await this.redis.delByPattern(`articles:slug:${slug}:*`);
+
     return { viewCount: article.viewCount };
   }
 
   private async invalidateArticlesCache(slug?: string) {
     await this.redis.delByPattern('articles:list:*');
-    
+
     if (slug) {
-      await this.redis.del(`articles:slug:${slug}`);
+      await this.redis.delByPattern(`articles:slug:${slug}:*`);
     }
   }
 }
