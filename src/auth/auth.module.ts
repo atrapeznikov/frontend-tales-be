@@ -10,6 +10,8 @@ import {
   GithubStrategy,
   YandexStrategy,
 } from './strategies';
+import { LoginRateLimitInterceptor, CaptchaInterceptor } from './interceptors';
+import { CaptchaService } from './captcha';
 import { UsersModule } from '../users';
 
 @Module({
@@ -23,6 +25,9 @@ import { UsersModule } from '../users';
     AuthService,
     JwtStrategy,
     JwtRefreshStrategy,
+    LoginRateLimitInterceptor,
+    CaptchaInterceptor,
+    CaptchaService,
     // GoogleStrategy,
     // GithubStrategy,
     // YandexStrategy,

@@ -45,6 +45,10 @@ import * as Joi from 'joi';
 
         // Frontend
         FRONTEND_URL: Joi.string().default('http://localhost:3001'),
+
+        // Yandex SmartCaptcha (server-side verification)
+        // Leave empty in local dev to skip verification.
+        YANDEX_CAPTCHA_SECRET: Joi.string().optional().allow(''),
       }),
     }),
   ],

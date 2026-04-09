@@ -3,6 +3,7 @@ import {
   Post,
   Body,
   UseGuards,
+  UseInterceptors,
   Get,
   Req,
   Res,
@@ -23,6 +24,10 @@ import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { TokensDto } from './dto/tokens.dto.js';
 import { Public, CurrentUser } from '../common/decorators/index.js';
+import {
+  LoginRateLimitInterceptor,
+  CaptchaInterceptor,
+} from './interceptors/index.js';
 
 interface AuthenticatedUser {
   id: string;
@@ -60,10 +65,15 @@ export class AuthController {
   }
 
   @Public()
+  @UseInterceptors(CaptchaInterceptor, LoginRateLimitInterceptor)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({ status: 200, type: TokensDto })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many failed login attempts — try again later',
+  })
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: express.Response,
