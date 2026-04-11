@@ -131,3 +131,64 @@ model Tag {
 
   @@map("tags")
 }
+
+// ─── Roadmap ──────────────────────────────────────────────────────────────
+
+model RoadmapSection {
+  id        String        @id @default(uuid()) @db.Uuid
+  key       String        @unique
+  isNew     Boolean       @default(false) @map("is_new")
+  status    ContentStatus @default(DRAFT)
+  sortOrder Int           @default(0) @map("sort_order")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  categories RoadmapCategory[]
+
+  @@index([status, sortOrder])
+  @@map("roadmap_sections")
+}
+
+model RoadmapCategory {
+  id        String @id @default(uuid()) @db.Uuid
+  sectionId String @map("section_id") @db.Uuid
+  key       String
+  sortOrder Int    @default(0) @map("sort_order")
+
+  section RoadmapSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  items   RoadmapItem[]
+
+  @@unique([sectionId, key])
+  @@index([sectionId, sortOrder])
+  @@map("roadmap_categories")
+}
+
+model RoadmapItem {
+  id         String @id @default(uuid()) @db.Uuid
+  categoryId String @map("category_id") @db.Uuid
+  key        String
+  iconUrl    String @map("icon_url")
+  iconAlt    String @map("icon_alt")
+  sortOrder  Int    @default(0) @map("sort_order")
+
+  category RoadmapCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  links    RoadmapLink[]
+
+  @@unique([categoryId, key])
+  @@index([categoryId, sortOrder])
+  @@map("roadmap_items")
+}
+
+model RoadmapLink {
+  id        String  @id @default(uuid()) @db.Uuid
+  itemId    String  @map("item_id") @db.Uuid
+  label     String
+  url       String
+  type      String? @db.VarChar(10)
+  sortOrder Int     @default(0) @map("sort_order")
+
+  item RoadmapItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, sortOrder])
+  @@map("roadmap_links")
+}
