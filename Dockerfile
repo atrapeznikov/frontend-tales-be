@@ -29,6 +29,9 @@ COPY package*.json ./
 COPY prisma ./prisma/
 RUN npm ci --omit=dev
 
+# Install tsx for running seed scripts TODO УБРАТЬ ПОСЛЕ ИМПОРТА ДАННЫХ
+RUN npm install -g tsx
+
 # Regenerate Prisma client for this runtime
 RUN npx prisma generate
 
