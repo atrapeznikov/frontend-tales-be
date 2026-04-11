@@ -29,8 +29,6 @@ COPY package*.json ./
 COPY prisma ./prisma/
 RUN npm ci --omit=dev
 
-# Install tsx for running seed scripts TODO УБРАТЬ ПОСЛЕ ИМПОРТА ДАННЫХ
-RUN npm install -g tsx
 
 # Regenerate Prisma client for this runtime
 RUN npx prisma generate
@@ -41,6 +39,10 @@ COPY --from=builder /app/dist ./dist
 # Start script that runs migrations before starting the app
 COPY start.sh ./
 RUN chmod +x start.sh
+
+# Run as non-root user for security
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
 
 # Set environment
 ENV NODE_ENV=production

@@ -74,14 +74,7 @@ export class UsersService {
     });
 
     if (existingOAuth) {
-      // Update tokens
-      await this.prisma.oAuthAccount.update({
-        where: { id: existingOAuth.id },
-        data: {
-          accessToken: profile.accessToken,
-          refreshToken: profile.refreshToken,
-        },
-      });
+      // OAuth tokens are not stored — we only need them for the initial auth flow
       return existingOAuth.user;
     }
 
@@ -89,14 +82,12 @@ export class UsersService {
     const existingUser = await this.findByEmail(profile.email);
 
     if (existingUser) {
-      // Link new OAuth account to existing user
+      // Link new OAuth account to existing user (don't store provider tokens)
       await this.prisma.oAuthAccount.create({
         data: {
           userId: existingUser.id,
           provider: profile.provider,
           providerAccountId: profile.providerAccountId,
-          accessToken: profile.accessToken,
-          refreshToken: profile.refreshToken,
         },
       });
       return existingUser;
@@ -116,8 +107,6 @@ export class UsersService {
           create: {
             provider: profile.provider,
             providerAccountId: profile.providerAccountId,
-            accessToken: profile.accessToken,
-            refreshToken: profile.refreshToken,
           },
         },
       },

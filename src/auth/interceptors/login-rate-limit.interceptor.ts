@@ -115,13 +115,7 @@ export class LoginRateLimitInterceptor implements NestInterceptor {
   }
 
   private extractIp(req: Request): string {
-    // Honor X-Forwarded-For when behind a trusted proxy. Express already
-    // populates req.ip correctly if `app.set('trust proxy', ...)` is set;
-    // fall back to the raw header as a defensive default.
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string' && forwarded.length > 0) {
-      return forwarded.split(',')[0]!.trim();
-    }
+    // Express resolves req.ip correctly when trust proxy is configured in main.ts
     return req.ip ?? req.socket?.remoteAddress ?? 'unknown';
   }
 

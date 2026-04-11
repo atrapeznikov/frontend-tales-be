@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ArticlesService } from './articles.service.js';
@@ -103,7 +104,11 @@ export class ArticlesController {
   @Post(':slug/view')
   @Public()
   @ApiOperation({ summary: 'Increment view count for an article' })
-  incrementViewCount(@Param('slug') slug: string) {
-    return this.articlesService.incrementViewCount(slug);
+  incrementViewCount(
+    @Param('slug') slug: string,
+    @Req() req: any,
+  ) {
+    const ip: string = req.ip ?? req.socket?.remoteAddress ?? 'unknown';
+    return this.articlesService.incrementViewCount(slug, ip);
   }
 }

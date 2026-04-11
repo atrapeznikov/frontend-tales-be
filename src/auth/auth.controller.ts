@@ -11,6 +11,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import {
   ApiTags,
   ApiOperation,
@@ -22,7 +23,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
-import { TokensDto } from './dto/tokens.dto.js';
+import { AccessTokenDto } from './dto/tokens.dto.js';
 import { Public, CurrentUser } from '../common/decorators/index.js';
 import {
   LoginRateLimitInterceptor,
@@ -52,16 +53,17 @@ export class AuthController {
   ) {}
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
-  @ApiResponse({ status: 201, type: TokensDto })
+  @ApiResponse({ status: 201, type: AccessTokenDto })
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: express.Response,
-  ): Promise<TokensDto> {
+  ): Promise<AccessTokenDto> {
     const tokens = await this.authService.register(dto);
     this.setRefreshTokenCookie(res, tokens.refreshToken);
-    return tokens;
+    return { accessToken: tokens.accessToken };
   }
 
   @Public()
@@ -69,7 +71,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
-  @ApiResponse({ status: 200, type: TokensDto })
+  @ApiResponse({ status: 200, type: AccessTokenDto })
   @ApiResponse({
     status: 429,
     description: 'Too many failed login attempts — try again later',
@@ -77,10 +79,10 @@ export class AuthController {
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: express.Response,
-  ): Promise<TokensDto> {
+  ): Promise<AccessTokenDto> {
     const tokens = await this.authService.login(dto);
     this.setRefreshTokenCookie(res, tokens.refreshToken);
-    return tokens;
+    return { accessToken: tokens.accessToken };
   }
 
   @Public()
@@ -88,17 +90,17 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
-  @ApiResponse({ status: 200, type: TokensDto })
+  @ApiResponse({ status: 200, type: AccessTokenDto })
   async refresh(
     @CurrentUser() user: RefreshUser,
     @Res({ passthrough: true }) res: express.Response,
-  ): Promise<TokensDto> {
+  ): Promise<AccessTokenDto> {
     const tokens = await this.authService.refreshTokens(
       user.id,
       user.refreshToken,
     );
     this.setRefreshTokenCookie(res, tokens.refreshToken);
-    return tokens;
+    return { accessToken: tokens.accessToken };
   }
 
   @Post('logout')
@@ -121,6 +123,20 @@ export class AuthController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<AuthenticatedUser> {
     return user;
+  }
+
+  @Public()
+  @Post('oauth/exchange')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Exchange an OAuth authorization code for tokens' })
+  @ApiResponse({ status: 200, type: AccessTokenDto })
+  async exchangeOAuthCode(
+    @Body('code') code: string,
+    @Res({ passthrough: true }) res: express.Response,
+  ): Promise<AccessTokenDto> {
+    const tokens = await this.authService.exchangeOAuthCode(code);
+    this.setRefreshTokenCookie(res, tokens.refreshToken);
+    return { accessToken: tokens.accessToken };
   }
 
   // ─── OAuth: Google ────────────────────────────
@@ -199,13 +215,12 @@ export class AuthController {
       createdAt: Date;
       updatedAt: Date;
     };
-    const tokens = await this.authService.generateTokens(user);
-    this.setRefreshTokenCookie(res, tokens.refreshToken);
+
+    // Generate a single-use authorization code instead of passing tokens in the URL
+    const code = await this.authService.createOAuthCode(user.id);
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
-    res.redirect(
-      `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}`,
-    );
+    res.redirect(`${frontendUrl}/auth/callback?code=${code}`);
   }
 
   private setRefreshTokenCookie(

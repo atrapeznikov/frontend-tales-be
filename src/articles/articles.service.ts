@@ -214,7 +214,17 @@ export class ArticlesService {
     return { success: true };
   }
 
-  async incrementViewCount(slug: string) {
+  async incrementViewCount(slug: string, ip: string) {
+    // Deduplicate: one view per IP per article per hour
+    const dedupeKey = `views:dedup:${slug}:${ip}`;
+    const alreadyCounted = await this.redis.get(dedupeKey);
+    if (alreadyCounted) {
+      const article = await this.prisma.article.findUnique({ where: { slug }, select: { viewCount: true } });
+      return { viewCount: article?.viewCount ?? 0 };
+    }
+
+    await this.redis.set(dedupeKey, '1', 3600); // 1 hour window
+
     const article = await this.prisma.article.update({
       where: { slug },
       data: { viewCount: { increment: 1 } },

@@ -12,6 +12,7 @@ import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { TokensDto } from './dto/tokens.dto.js';
 import * as bcrypt from 'bcrypt';
+import { v4 as uuid } from 'uuid';
 
 export interface JwtPayload {
   sub: string;
@@ -93,6 +94,33 @@ export class AuthService {
   async logout(userId: string): Promise<void> {
     await this.redisService.del(`user:session:${userId}`);
     this.logger.log(`User ${userId} logged out`);
+  }
+
+  /**
+   * Creates a single-use, short-lived authorization code for OAuth callbacks.
+   * The code is stored in Redis and expires in 60 seconds.
+   */
+  async createOAuthCode(userId: string): Promise<string> {
+    const code = uuid();
+    await this.redisService.set(`oauth:code:${code}`, userId, 60);
+    return code;
+  }
+
+  /**
+   * Exchanges an authorization code for tokens. The code is deleted after use
+   * to prevent replay attacks.
+   */
+  async exchangeOAuthCode(code: string): Promise<TokensDto> {
+    const userId = await this.redisService.get(`oauth:code:${code}`);
+    if (!userId) {
+      throw new UnauthorizedException('Invalid or expired authorization code');
+    }
+
+    // Delete the code immediately (single-use)
+    await this.redisService.del(`oauth:code:${code}`);
+
+    const user = await this.usersService.findByIdOrThrow(userId);
+    return this.generateTokens(user);
   }
 
   async generateTokens(user: UserEntity): Promise<TokensDto> {
