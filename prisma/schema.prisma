@@ -135,16 +135,17 @@ model Tag {
 // ─── Roadmap ──────────────────────────────────────────────────────────────
 
 model RoadmapSection {
-  id        String   @id @default(uuid()) @db.Uuid
-  key       String   @unique
-  isNew     Boolean  @default(false) @map("is_new")
-  sortOrder Int      @default(0) @map("sort_order")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id        String        @id @default(uuid()) @db.Uuid
+  key       String        @unique
+  isNew     Boolean       @default(false) @map("is_new")
+  status    ContentStatus @default(DRAFT)
+  sortOrder Int           @default(0) @map("sort_order")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
 
   categories RoadmapCategory[]
 
-  @@index([sortOrder])
+  @@index([status, sortOrder])
   @@map("roadmap_sections")
 }
 

@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsBoolean,
   IsInt,
+  IsEnum,
   IsArray,
   IsUrl,
   ValidateNested,
@@ -11,6 +12,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { ContentStatus } from '../../articles/dto/create-article.dto.js';
 
 export class CreateRoadmapLinkDto {
   @ApiProperty({ example: 'MDN - HTML elements reference' })
@@ -98,6 +100,11 @@ export class CreateRoadmapSectionDto {
   @IsBoolean()
   @IsOptional()
   isNew?: boolean;
+
+  @ApiPropertyOptional({ enum: ContentStatus, default: ContentStatus.DRAFT })
+  @IsEnum(ContentStatus)
+  @IsOptional()
+  status?: ContentStatus;
 
   @ApiPropertyOptional({ example: 0 })
   @IsInt()

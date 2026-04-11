@@ -8,8 +8,23 @@ import { RedisService } from '../redis/redis.service.js';
 import { CreateRoadmapSectionDto } from './dto/create-roadmap.dto.js';
 import { UpdateRoadmapSectionDto } from './dto/update-roadmap.dto.js';
 
-const CACHE_KEY = 'roadmap:full';
 const CACHE_TTL = 600;
+
+const fullInclude = {
+  categories: {
+    orderBy: { sortOrder: 'asc' as const },
+    include: {
+      items: {
+        orderBy: { sortOrder: 'asc' as const },
+        include: {
+          links: {
+            orderBy: { sortOrder: 'asc' as const },
+          },
+        },
+      },
+    },
+  },
+};
 
 @Injectable()
 export class RoadmapService {
@@ -18,54 +33,37 @@ export class RoadmapService {
     private readonly redis: RedisService,
   ) {}
 
-  async findAll() {
-    const cached = await this.redis.get(CACHE_KEY);
+  async findAll(isAdmin: boolean = false) {
+    const cacheKey = `roadmap:full:admin_${isAdmin}`;
+    const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
+    const where: any = {};
+    if (!isAdmin) {
+      where.status = 'PUBLISHED';
+    }
+
     const sections = await this.prisma.roadmapSection.findMany({
+      where,
       orderBy: { sortOrder: 'asc' },
-      include: {
-        categories: {
-          orderBy: { sortOrder: 'asc' },
-          include: {
-            items: {
-              orderBy: { sortOrder: 'asc' },
-              include: {
-                links: {
-                  orderBy: { sortOrder: 'asc' },
-                },
-              },
-            },
-          },
-        },
-      },
+      include: fullInclude,
     });
 
-    await this.redis.set(CACHE_KEY, JSON.stringify(sections), CACHE_TTL);
+    await this.redis.set(cacheKey, JSON.stringify(sections), CACHE_TTL);
     return sections;
   }
 
-  async findSectionByKey(key: string) {
+  async findSectionByKey(key: string, isAdmin: boolean = false) {
     const section = await this.prisma.roadmapSection.findUnique({
       where: { key },
-      include: {
-        categories: {
-          orderBy: { sortOrder: 'asc' },
-          include: {
-            items: {
-              orderBy: { sortOrder: 'asc' },
-              include: {
-                links: {
-                  orderBy: { sortOrder: 'asc' },
-                },
-              },
-            },
-          },
-        },
-      },
+      include: fullInclude,
     });
 
     if (!section) throw new NotFoundException('Section not found');
+    if (!isAdmin && section.status !== 'PUBLISHED') {
+      throw new NotFoundException('Section not found');
+    }
+
     return section;
   }
 

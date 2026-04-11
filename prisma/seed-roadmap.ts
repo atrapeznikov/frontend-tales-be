@@ -1735,6 +1735,7 @@ async function main() {
       data: {
         key: sectionData.key,
         isNew: sectionData.isNew ?? false,
+        status: 'PUBLISHED',
         sortOrder: si,
       },
     });

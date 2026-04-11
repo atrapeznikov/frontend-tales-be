@@ -11,7 +11,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { RoadmapService } from './roadmap.service.js';
 import { CreateRoadmapSectionDto } from './dto/create-roadmap.dto.js';
 import { UpdateRoadmapSectionDto } from './dto/update-roadmap.dto.js';
-import { Public, Roles } from '../common/decorators/index.js';
+import { Public, Roles, CurrentUser } from '../common/decorators/index.js';
 
 @ApiTags('Roadmap')
 @Controller('roadmap')
@@ -23,15 +23,17 @@ export class RoadmapController {
   @ApiOperation({
     summary: 'Get full roadmap with all sections, categories, items, and links',
   })
-  findAll() {
-    return this.roadmapService.findAll();
+  findAll(@CurrentUser() user: any) {
+    const isAdmin = user?.role === 'ADMIN';
+    return this.roadmapService.findAll(isAdmin);
   }
 
   @Get(':key')
   @Public()
   @ApiOperation({ summary: 'Get a roadmap section by key' })
-  findByKey(@Param('key') key: string) {
-    return this.roadmapService.findSectionByKey(key);
+  findByKey(@Param('key') key: string, @CurrentUser() user: any) {
+    const isAdmin = user?.role === 'ADMIN';
+    return this.roadmapService.findSectionByKey(key, isAdmin);
   }
 
   @Post()
