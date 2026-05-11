@@ -143,7 +143,8 @@ model RoadmapSection {
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
 
-  categories RoadmapCategory[]
+  categories   RoadmapCategory[]
+  translations RoadmapSectionTranslation[]
 
   @@index([status, sortOrder])
   @@map("roadmap_sections")
@@ -157,6 +158,7 @@ model RoadmapCategory {
 
   section RoadmapSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   items   RoadmapItem[]
+  translations RoadmapCategoryTranslation[]
 
   @@unique([sectionId, key])
   @@index([sectionId, sortOrder])
@@ -173,6 +175,7 @@ model RoadmapItem {
 
   category RoadmapCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   links    RoadmapLink[]
+  translations RoadmapItemTranslation[]
 
   @@unique([categoryId, key])
   @@index([categoryId, sortOrder])
@@ -191,4 +194,44 @@ model RoadmapLink {
 
   @@index([itemId, sortOrder])
   @@map("roadmap_links")
+}
+
+model RoadmapSectionTranslation {
+  id        String @id @default(uuid()) @db.Uuid
+  sectionId String @map("section_id") @db.Uuid
+  language  String @db.VarChar(2)
+  title     String
+
+  section RoadmapSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, language])
+  @@index([language])
+  @@map("roadmap_section_translations")
+}
+
+model RoadmapCategoryTranslation {
+  id         String @id @default(uuid()) @db.Uuid
+  categoryId String @map("category_id") @db.Uuid
+  language   String @db.VarChar(2)
+  name       String
+
+  category RoadmapCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, language])
+  @@index([language])
+  @@map("roadmap_category_translations")
+}
+
+model RoadmapItemTranslation {
+  id          String @id @default(uuid()) @db.Uuid
+  itemId      String @map("item_id") @db.Uuid
+  language    String @db.VarChar(2)
+  title       String
+  description String @db.Text
+
+  item RoadmapItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, language])
+  @@index([language])
+  @@map("roadmap_item_translations")
 }

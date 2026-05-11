@@ -11,12 +11,15 @@ import { UpdateRoadmapSectionDto } from './dto/update-roadmap.dto.js';
 const CACHE_TTL = 600;
 
 const fullInclude = {
+  translations: true,
   categories: {
     orderBy: { sortOrder: 'asc' as const },
     include: {
+      translations: true,
       items: {
         orderBy: { sortOrder: 'asc' as const },
         include: {
+          translations: true,
           links: {
             orderBy: { sortOrder: 'asc' as const },
           },
@@ -73,16 +76,32 @@ export class RoadmapService {
     });
     if (existing) throw new ConflictException('Section key already exists');
 
-    const { categories, ...sectionData } = dto;
+    const { categories, translations, ...sectionData } = dto;
 
     const section = await this.prisma.roadmapSection.create({
       data: {
         ...sectionData,
+        translations: translations
+          ? {
+              create: translations.map((t) => ({
+                language: t.language,
+                title: t.title,
+              })),
+            }
+          : undefined,
         categories: categories
           ? {
               create: categories.map((cat) => ({
                 key: cat.key,
                 sortOrder: cat.sortOrder ?? 0,
+                translations: cat.translations
+                  ? {
+                      create: cat.translations.map((t) => ({
+                        language: t.language,
+                        name: t.name,
+                      })),
+                    }
+                  : undefined,
                 items: cat.items
                   ? {
                       create: cat.items.map((item) => ({
@@ -90,6 +109,15 @@ export class RoadmapService {
                         iconUrl: item.iconUrl,
                         iconAlt: item.iconAlt,
                         sortOrder: item.sortOrder ?? 0,
+                        translations: item.translations
+                          ? {
+                              create: item.translations.map((t) => ({
+                                language: t.language,
+                                title: t.title,
+                                description: t.description ?? '',
+                              })),
+                            }
+                          : undefined,
                         links: item.links
                           ? {
                               create: item.links.map((link) => ({
@@ -107,15 +135,7 @@ export class RoadmapService {
             }
           : undefined,
       },
-      include: {
-        categories: {
-          include: {
-            items: {
-              include: { links: true },
-            },
-          },
-        },
-      },
+      include: fullInclude,
     });
 
     await this.invalidateCache();
@@ -128,20 +148,73 @@ export class RoadmapService {
     });
     if (!existing) throw new NotFoundException('Section not found');
 
-    const { categories, ...sectionData } = dto;
+    const { categories, translations, ...sectionData } = dto;
+
+    // To cleanly update the whole tree, delete existing nested records and recreate them
+    await this.prisma.$transaction([
+      this.prisma.roadmapCategory.deleteMany({ where: { sectionId: id } }),
+      this.prisma.roadmapSectionTranslation.deleteMany({ where: { sectionId: id } }),
+    ]);
 
     const section = await this.prisma.roadmapSection.update({
       where: { id },
-      data: sectionData,
-      include: {
-        categories: {
-          include: {
-            items: {
-              include: { links: true },
-            },
-          },
-        },
+      data: {
+        ...sectionData,
+        translations: translations
+          ? {
+              create: translations.map((t) => ({
+                language: t.language,
+                title: t.title,
+              })),
+            }
+          : undefined,
+        categories: categories
+          ? {
+              create: categories.map((cat) => ({
+                key: cat.key,
+                sortOrder: cat.sortOrder ?? 0,
+                translations: cat.translations
+                  ? {
+                      create: cat.translations.map((t) => ({
+                        language: t.language,
+                        name: t.name,
+                      })),
+                    }
+                  : undefined,
+                items: cat.items
+                  ? {
+                      create: cat.items.map((item) => ({
+                        key: item.key,
+                        iconUrl: item.iconUrl,
+                        iconAlt: item.iconAlt,
+                        sortOrder: item.sortOrder ?? 0,
+                        translations: item.translations
+                          ? {
+                              create: item.translations.map((t) => ({
+                                language: t.language,
+                                title: t.title,
+                                description: t.description ?? '',
+                              })),
+                            }
+                          : undefined,
+                        links: item.links
+                          ? {
+                              create: item.links.map((link) => ({
+                                label: link.label,
+                                url: link.url,
+                                type: link.type,
+                                sortOrder: link.sortOrder ?? 0,
+                              })),
+                            }
+                          : undefined,
+                      })),
+                    }
+                  : undefined,
+              })),
+            }
+          : undefined,
       },
+      include: fullInclude,
     });
 
     await this.invalidateCache();

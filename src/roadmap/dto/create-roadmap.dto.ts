@@ -14,6 +14,40 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { ContentStatus } from '../../articles/dto/create-article.dto.js';
 
+export class CreateRoadmapItemTranslationDto {
+  @IsString()
+  @IsNotEmpty()
+  language: string;
+
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+}
+
+export class CreateRoadmapCategoryTranslationDto {
+  @IsString()
+  @IsNotEmpty()
+  language: string;
+
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+}
+
+export class CreateRoadmapSectionTranslationDto {
+  @IsString()
+  @IsNotEmpty()
+  language: string;
+
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+}
+
 export class CreateRoadmapLinkDto {
   @ApiProperty({ example: 'MDN - HTML elements reference' })
   @IsString()
@@ -69,6 +103,13 @@ export class CreateRoadmapItemDto {
   @IsArray()
   @IsOptional()
   links?: CreateRoadmapLinkDto[];
+
+  @ApiPropertyOptional({ type: [CreateRoadmapItemTranslationDto] })
+  @ValidateNested({ each: true })
+  @Type(() => CreateRoadmapItemTranslationDto)
+  @IsArray()
+  @IsOptional()
+  translations?: CreateRoadmapItemTranslationDto[];
 }
 
 export class CreateRoadmapCategoryDto {
@@ -88,6 +129,13 @@ export class CreateRoadmapCategoryDto {
   @IsArray()
   @IsOptional()
   items?: CreateRoadmapItemDto[];
+
+  @ApiPropertyOptional({ type: [CreateRoadmapCategoryTranslationDto] })
+  @ValidateNested({ each: true })
+  @Type(() => CreateRoadmapCategoryTranslationDto)
+  @IsArray()
+  @IsOptional()
+  translations?: CreateRoadmapCategoryTranslationDto[];
 }
 
 export class CreateRoadmapSectionDto {
@@ -118,4 +166,11 @@ export class CreateRoadmapSectionDto {
   @IsArray()
   @IsOptional()
   categories?: CreateRoadmapCategoryDto[];
+
+  @ApiPropertyOptional({ type: [CreateRoadmapSectionTranslationDto] })
+  @ValidateNested({ each: true })
+  @Type(() => CreateRoadmapSectionTranslationDto)
+  @IsArray()
+  @IsOptional()
+  translations?: CreateRoadmapSectionTranslationDto[];
 }
