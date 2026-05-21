@@ -28,9 +28,9 @@ import { UsersModule } from '../users';
     LoginRateLimitInterceptor,
     CaptchaInterceptor,
     CaptchaService,
-    // GoogleStrategy,
-    // GithubStrategy,
-    // YandexStrategy,
+    GoogleStrategy,
+    GithubStrategy,
+    YandexStrategy,
   ],
   exports: [AuthService],
 })

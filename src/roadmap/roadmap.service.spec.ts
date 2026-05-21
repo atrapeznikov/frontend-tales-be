@@ -18,6 +18,13 @@ describe('RoadmapService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    roadmapCategory: {
+      deleteMany: jest.fn(),
+    },
+    roadmapSectionTranslation: {
+      deleteMany: jest.fn(),
+    },
+    $transaction: jest.fn((promises) => Promise.all(promises)),
   };
 
   const mockRedis = {

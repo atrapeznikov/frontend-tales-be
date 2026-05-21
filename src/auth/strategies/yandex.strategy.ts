@@ -13,9 +13,9 @@ export class YandexStrategy extends PassportStrategy(Strategy, 'yandex') {
     private readonly usersService: UsersService,
   ) {
     super({
-      clientID: configService.get<string>('YANDEX_CLIENT_ID')!,
-      clientSecret: configService.get<string>('YANDEX_CLIENT_SECRET')!,
-      callbackURL: configService.get<string>('YANDEX_CALLBACK_URL')!,
+      clientID: configService.get<string>('YANDEX_CLIENT_ID') || 'dummy-client-id',
+      clientSecret: configService.get<string>('YANDEX_CLIENT_SECRET') || 'dummy-client-secret',
+      callbackURL: configService.get<string>('YANDEX_CALLBACK_URL') || 'http://localhost:3000/auth/yandex/callback',
       authorizationURL: 'https://oauth.yandex.ru/authorize',
       tokenURL: 'https://oauth.yandex.ru/token',
       userProfileURL: 'https://login.yandex.ru/info?format=json',
