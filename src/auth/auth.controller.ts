@@ -35,6 +35,8 @@ interface AuthenticatedUser {
   email: string;
   role: string;
   displayName: string;
+  avatarUrl: string | null;
+  createdAt: Date;
 }
 
 interface RefreshUser {

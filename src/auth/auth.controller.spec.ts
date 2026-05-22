@@ -166,6 +166,8 @@ describe('AuthController', () => {
         email: 'a@b.com',
         role: 'USER',
         displayName: 'Alex',
+        avatarUrl: null,
+        createdAt: new Date(),
       };
       const result = await controller.getMe(user);
       expect(result).toBe(user);
