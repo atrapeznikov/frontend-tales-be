@@ -35,6 +35,7 @@ interface AuthenticatedUser {
   email: string;
   role: string;
   displayName: string;
+  nickname: string | null;
   avatarUrl: string | null;
   createdAt: Date;
 }
@@ -212,6 +213,7 @@ export class AuthController {
       email: string;
       role: string;
       displayName: string;
+      nickname: string | null;
       passwordHash: string | null;
       avatarUrl: string | null;
       createdAt: Date;

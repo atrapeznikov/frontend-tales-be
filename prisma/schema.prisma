@@ -28,6 +28,7 @@ model User {
   email        String   @unique
   passwordHash String?  @map("password_hash")
   displayName  String   @map("display_name")
+  nickname     String?  @unique @map("nickname")
   avatarUrl    String?  @map("avatar_url")
   role         Role     @default(USER)
   createdAt    DateTime @default(now()) @map("created_at")
@@ -247,7 +248,9 @@ enum ReactionType {
   FIRE
   LAUGH
   DISLIKE
+  MOON
 }
+
 
 model Comment {
   id        String   @id @default(uuid()) @db.Uuid

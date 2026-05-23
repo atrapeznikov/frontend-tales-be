@@ -25,6 +25,7 @@ interface UserEntity {
   email: string;
   role: string;
   displayName: string;
+  nickname: string | null;
   passwordHash: string | null;
   avatarUrl: string | null;
   createdAt: Date;
@@ -47,6 +48,7 @@ export class AuthService {
       email: dto.email,
       password: dto.password,
       displayName: dto.displayName,
+      nickname: dto.nickname,
     });
 
     return this.generateTokens(user);

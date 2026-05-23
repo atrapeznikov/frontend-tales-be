@@ -39,6 +39,7 @@ export class CommentsService {
           select: {
             id: true,
             displayName: true,
+            nickname: true,
             avatarUrl: true,
             email: true,
             role: true,
@@ -75,6 +76,7 @@ export class CommentsService {
           select: {
             id: true,
             displayName: true,
+            nickname: true,
             avatarUrl: true,
             email: true,
             role: true,
@@ -157,6 +159,7 @@ export class CommentsService {
           select: {
             id: true,
             displayName: true,
+            nickname: true,
             avatarUrl: true,
             email: true,
             role: true,
@@ -215,6 +218,7 @@ export class CommentsService {
           select: {
             id: true,
             displayName: true,
+            nickname: true,
             avatarUrl: true,
             email: true,
             role: true,

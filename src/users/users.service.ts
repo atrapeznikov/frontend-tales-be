@@ -33,11 +33,19 @@ export class UsersService {
     email: string;
     password?: string;
     displayName: string;
+    nickname: string;
     avatarUrl?: string;
   }) {
     const existing = await this.findByEmail(data.email);
     if (existing) {
       throw new ConflictException('User with this email already exists');
+    }
+
+    const existingNickname = await this.prisma.user.findUnique({
+      where: { nickname: data.nickname },
+    });
+    if (existingNickname) {
+      throw new ConflictException('User with this nickname already exists');
     }
 
     const passwordHash = data.password
@@ -51,6 +59,7 @@ export class UsersService {
         email: data.email,
         passwordHash,
         displayName: data.displayName,
+        nickname: data.nickname,
         avatarUrl: data.avatarUrl,
         role,
       },
@@ -101,10 +110,28 @@ export class UsersService {
     const usersCount = await this.prisma.user.count();
     const role = usersCount === 0 ? 'ADMIN' : 'USER';
 
+    // Generate unique nickname from displayName or email prefix
+    let baseNickname = profile.displayName.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+    if (!baseNickname || baseNickname.length < 2) {
+      baseNickname = profile.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+    }
+    if (!baseNickname || baseNickname.length < 2) {
+      baseNickname = 'user_' + Math.random().toString(36).substring(2, 7);
+    }
+    baseNickname = baseNickname.slice(0, 25);
+
+    let nickname = baseNickname;
+    let suffix = 1;
+    while (await this.prisma.user.findUnique({ where: { nickname } })) {
+      nickname = `${baseNickname}_${suffix}`;
+      suffix++;
+    }
+
     return this.prisma.user.create({
       data: {
         email: profile.email,
         displayName: profile.displayName,
+        nickname,
         avatarUrl: profile.avatarUrl,
         role,
         oauthAccounts: {
