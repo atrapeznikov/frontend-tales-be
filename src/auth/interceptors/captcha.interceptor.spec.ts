@@ -1,4 +1,8 @@
-import { CallHandler, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  CallHandler,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { of } from 'rxjs';
 import { CaptchaInterceptor } from './captcha.interceptor.js';
 import { CaptchaService } from '../captcha/captcha.service.js';

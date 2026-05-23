@@ -39,7 +39,10 @@ describe('HttpExceptionFilter', () => {
   it('should serialize HttpException with object response (message field)', () => {
     const { host, json } = buildHost();
     filter.catch(
-      new BadRequestException({ message: ['bad', 'worse'], error: 'Bad Request' }),
+      new BadRequestException({
+        message: ['bad', 'worse'],
+        error: 'Bad Request',
+      }),
       host,
     );
 

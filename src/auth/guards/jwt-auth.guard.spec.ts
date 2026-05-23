@@ -23,9 +23,7 @@ describe('JwtAuthGuard', () => {
 
   describe('handleRequest', () => {
     it('should return user when authentication succeeds', () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(false);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
       const user = { id: 'u1' };
       const result = guard.handleRequest(null, user, null, buildContext());
       expect(result).toBe(user);
@@ -68,7 +66,10 @@ describe('JwtAuthGuard', () => {
     it('should delegate to passport AuthGuard.canActivate', () => {
       const ctx = buildContext();
       const superSpy = jest
-        .spyOn(Object.getPrototypeOf(Object.getPrototypeOf(guard)), 'canActivate')
+        .spyOn(
+          Object.getPrototypeOf(Object.getPrototypeOf(guard)),
+          'canActivate',
+        )
         .mockReturnValue(true as any);
 
       const result = guard.canActivate(ctx);

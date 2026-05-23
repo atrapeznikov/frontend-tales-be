@@ -73,9 +73,7 @@ export class AuthService {
     userId: string,
     refreshToken: string,
   ): Promise<TokensDto> {
-    const storedHash = await this.redisService.get(
-      `user:session:${userId}`,
-    );
+    const storedHash = await this.redisService.get(`user:session:${userId}`);
 
     if (!storedHash) {
       throw new ForbiddenException('Session expired');
@@ -132,12 +130,16 @@ export class AuthService {
 
     const accessOpts: JwtSignOptions = {
       secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-      expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') as JwtSignOptions['expiresIn'],
+      expiresIn: this.configService.get<string>(
+        'JWT_ACCESS_EXPIRES_IN',
+      ) as JwtSignOptions['expiresIn'],
     };
 
     const refreshOpts: JwtSignOptions = {
       secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') as JwtSignOptions['expiresIn'],
+      expiresIn: this.configService.get<string>(
+        'JWT_REFRESH_EXPIRES_IN',
+      ) as JwtSignOptions['expiresIn'],
     };
 
     const [accessToken, refreshToken] = await Promise.all([

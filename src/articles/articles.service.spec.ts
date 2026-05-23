@@ -298,7 +298,9 @@ describe('ArticlesService', () => {
 
       const callArg = mockPrisma.article.findMany.mock.calls[0][0];
       expect(callArg.where.translations).toEqual({ some: { language: 'ru' } });
-      expect(callArg.include.translations).toEqual({ where: { language: 'ru' } });
+      expect(callArg.include.translations).toEqual({
+        where: { language: 'ru' },
+      });
     });
 
     it('should default to page 1 and limit 10 when no pagination provided', async () => {
@@ -353,7 +355,9 @@ describe('ArticlesService', () => {
       await service.findBySlug('s', true, 'en');
 
       const callArg = mockPrisma.article.findUnique.mock.calls[0][0];
-      expect(callArg.include.translations).toEqual({ where: { language: 'en' } });
+      expect(callArg.include.translations).toEqual({
+        where: { language: 'en' },
+      });
     });
 
     it('should throw NotFoundException when article does not exist', async () => {
@@ -409,13 +413,17 @@ describe('ArticlesService', () => {
       const updated = { id: 'a1', slug: 'old' };
       mockPrisma.article.update.mockResolvedValue(updated);
 
-      const result = await service.update('a1', { slug: 'old' } as UpdateArticleDto);
+      const result = await service.update('a1', {
+        slug: 'old',
+      } as UpdateArticleDto);
 
       expect(mockPrisma.article.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: 'a1' } }),
       );
       expect(mockRedis.delByPattern).toHaveBeenCalledWith('articles:list:*');
-      expect(mockRedis.delByPattern).toHaveBeenCalledWith('articles:slug:old:*');
+      expect(mockRedis.delByPattern).toHaveBeenCalledWith(
+        'articles:slug:old:*',
+      );
       expect(result).toBe(updated);
     });
 

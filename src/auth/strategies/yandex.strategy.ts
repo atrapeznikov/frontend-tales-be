@@ -13,9 +13,14 @@ export class YandexStrategy extends PassportStrategy(Strategy, 'yandex') {
     private readonly usersService: UsersService,
   ) {
     super({
-      clientID: configService.get<string>('YANDEX_CLIENT_ID') || 'dummy-client-id',
-      clientSecret: configService.get<string>('YANDEX_CLIENT_SECRET') || 'dummy-client-secret',
-      callbackURL: configService.get<string>('YANDEX_CALLBACK_URL') || 'http://localhost:3000/auth/yandex/callback',
+      clientID:
+        configService.get<string>('YANDEX_CLIENT_ID') || 'dummy-client-id',
+      clientSecret:
+        configService.get<string>('YANDEX_CLIENT_SECRET') ||
+        'dummy-client-secret',
+      callbackURL:
+        configService.get<string>('YANDEX_CALLBACK_URL') ||
+        'http://localhost:3000/auth/yandex/callback',
       authorizationURL: 'https://oauth.yandex.ru/authorize',
       tokenURL: 'https://oauth.yandex.ru/token',
       userProfileURL: 'https://login.yandex.ru/info?format=json',
@@ -23,13 +28,14 @@ export class YandexStrategy extends PassportStrategy(Strategy, 'yandex') {
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userProfile(accessToken: string, done: (err: any, profile?: any) => void): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  userProfile(
+    accessToken: string,
+    done: (err: any, profile?: any) => void,
+  ): void {
     (this as any)._oauth2.get(
       'https://login.yandex.ru/info?format=json',
       accessToken,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       (err: any, body: string | Buffer | undefined) => {
         if (err) {
           done(err);
@@ -41,9 +47,7 @@ export class YandexStrategy extends PassportStrategy(Strategy, 'yandex') {
           const profile = {
             id: json.id,
             displayName: json.display_name || json.real_name || json.login,
-            emails: json.default_email
-              ? [{ value: json.default_email }]
-              : [],
+            emails: json.default_email ? [{ value: json.default_email }] : [],
             photos: json.default_avatar_id
               ? [
                   {
@@ -65,7 +69,7 @@ export class YandexStrategy extends PassportStrategy(Strategy, 'yandex') {
   async validate(
     accessToken: string,
     refreshToken: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     profile: any,
     done: (err: Error | null, user?: unknown) => void,
   ): Promise<void> {

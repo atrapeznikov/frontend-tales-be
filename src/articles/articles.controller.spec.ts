@@ -28,9 +28,7 @@ describe('ArticlesController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ArticlesController],
-      providers: [
-        { provide: ArticlesService, useValue: mockArticlesService },
-      ],
+      providers: [{ provide: ArticlesService, useValue: mockArticlesService }],
     }).compile();
 
     controller = module.get<ArticlesController>(ArticlesController);
@@ -186,9 +184,13 @@ describe('ArticlesController', () => {
 
   describe('incrementViewCount', () => {
     it('should pass req.ip to service', async () => {
-      mockArticlesService.incrementViewCount.mockResolvedValue({ viewCount: 1 });
+      mockArticlesService.incrementViewCount.mockResolvedValue({
+        viewCount: 1,
+      });
 
-      const result = await controller.incrementViewCount('s', { ip: '1.2.3.4' });
+      const result = await controller.incrementViewCount('s', {
+        ip: '1.2.3.4',
+      });
 
       expect(mockArticlesService.incrementViewCount).toHaveBeenCalledWith(
         's',
@@ -198,7 +200,9 @@ describe('ArticlesController', () => {
     });
 
     it('should fall back to socket.remoteAddress when ip is missing', async () => {
-      mockArticlesService.incrementViewCount.mockResolvedValue({ viewCount: 1 });
+      mockArticlesService.incrementViewCount.mockResolvedValue({
+        viewCount: 1,
+      });
 
       await controller.incrementViewCount('s', {
         socket: { remoteAddress: '5.6.7.8' },
@@ -211,7 +215,9 @@ describe('ArticlesController', () => {
     });
 
     it("should fall back to 'unknown' when ip and socket are unavailable", async () => {
-      mockArticlesService.incrementViewCount.mockResolvedValue({ viewCount: 1 });
+      mockArticlesService.incrementViewCount.mockResolvedValue({
+        viewCount: 1,
+      });
 
       await controller.incrementViewCount('s', {});
 
