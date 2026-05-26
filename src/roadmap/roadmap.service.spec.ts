@@ -137,7 +137,9 @@ describe('RoadmapService', () => {
 
   describe('createSection', () => {
     it('should throw ConflictException when key already exists', async () => {
-      mockPrisma.roadmapSection.findUnique.mockResolvedValue({ id: 'existing' });
+      mockPrisma.roadmapSection.findUnique.mockResolvedValue({
+        id: 'existing',
+      });
       const dto: CreateRoadmapSectionDto = { key: 'k' };
       await expect(service.createSection(dto)).rejects.toThrow(
         ConflictException,
@@ -241,7 +243,9 @@ describe('RoadmapService', () => {
       });
 
       const callArg = mockPrisma.roadmapSection.create.mock.calls[0][0];
-      expect(callArg.data.categories.create[0].items.create[0].links).toBeUndefined();
+      expect(
+        callArg.data.categories.create[0].items.create[0].links,
+      ).toBeUndefined();
     });
   });
 

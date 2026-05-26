@@ -7,6 +7,7 @@ import { RedisModule } from './redis';
 import { AuthModule } from './auth';
 import { UsersModule } from './users';
 import { ArticlesModule } from './articles';
+import { CommentsModule } from './comments';
 import { RoadmapModule } from './roadmap';
 import { JwtAuthGuard } from './auth/guards';
 import { RolesGuard } from './auth/guards';
@@ -25,6 +26,7 @@ import { RolesGuard } from './auth/guards';
     AuthModule,
     UsersModule,
     ArticlesModule,
+    CommentsModule,
     RoadmapModule,
   ],
   providers: [

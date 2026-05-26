@@ -1,10 +1,21 @@
-import { IsOptional, IsString, IsEnum, IsInt, Min, Max, IsIn } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsInt,
+  Min,
+  Max,
+  IsIn,
+} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ContentStatus } from './create-article.dto.js';
 import { Type } from 'class-transformer';
 
 export class ArticleFilterDto {
-  @ApiPropertyOptional({ description: 'Language code (en or ru)', example: 'ru' })
+  @ApiPropertyOptional({
+    description: 'Language code (en or ru)',
+    example: 'ru',
+  })
   @IsString()
   @IsIn(['en', 'ru'])
   @IsOptional()
@@ -15,7 +26,10 @@ export class ArticleFilterDto {
   @IsOptional()
   tag?: string;
 
-  @ApiPropertyOptional({ enum: ContentStatus, description: 'Filter by published status' })
+  @ApiPropertyOptional({
+    enum: ContentStatus,
+    description: 'Filter by published status',
+  })
   @IsEnum(ContentStatus)
   @IsOptional()
   status?: ContentStatus;

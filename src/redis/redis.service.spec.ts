@@ -65,7 +65,6 @@ describe('RedisService', () => {
         }),
       } as unknown as ConfigService;
 
-      // eslint-disable-next-line no-new
       new RedisService(cs);
 
       const args = (Redis as jest.Mock).mock.calls[0][0];

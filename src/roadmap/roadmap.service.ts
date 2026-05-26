@@ -153,7 +153,9 @@ export class RoadmapService {
     // To cleanly update the whole tree, delete existing nested records and recreate them
     await this.prisma.$transaction([
       this.prisma.roadmapCategory.deleteMany({ where: { sectionId: id } }),
-      this.prisma.roadmapSectionTranslation.deleteMany({ where: { sectionId: id } }),
+      this.prisma.roadmapSectionTranslation.deleteMany({
+        where: { sectionId: id },
+      }),
     ]);
 
     const section = await this.prisma.roadmapSection.update({

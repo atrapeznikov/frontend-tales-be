@@ -35,6 +35,7 @@ interface AuthenticatedUser {
   email: string;
   role: string;
   displayName: string;
+  nickname: string | null;
   avatarUrl: string | null;
   createdAt: Date;
 }
@@ -212,6 +213,7 @@ export class AuthController {
       email: string;
       role: string;
       displayName: string;
+      nickname: string | null;
       passwordHash: string | null;
       avatarUrl: string | null;
       createdAt: Date;
@@ -225,10 +227,7 @@ export class AuthController {
     res.redirect(`${frontendUrl}/auth/callback?code=${code}`);
   }
 
-  private setRefreshTokenCookie(
-    res: express.Response,
-    token: string,
-  ): void {
+  private setRefreshTokenCookie(res: express.Response, token: string): void {
     res.cookie('refresh_token', token, {
       httpOnly: true,
       secure: this.configService.get<string>('NODE_ENV') === 'production',

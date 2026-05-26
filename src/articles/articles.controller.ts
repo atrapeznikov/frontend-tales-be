@@ -9,7 +9,12 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ArticlesService } from './articles.service.js';
 import { CreateArticleDto, CreateTagDto } from './dto/create-article.dto.js';
 import { UpdateArticleDto, UpdateTagDto } from './dto/update-article.dto.js';
@@ -75,7 +80,11 @@ export class ArticlesController {
   @Get(':slug')
   @Public()
   @ApiOperation({ summary: 'Get article by slug' })
-  @ApiQuery({ name: 'language', required: false, description: 'Language code (en or ru)' })
+  @ApiQuery({
+    name: 'language',
+    required: false,
+    description: 'Language code (en or ru)',
+  })
   findBySlug(
     @Param('slug') slug: string,
     @Query('language') language: string,
@@ -104,10 +113,7 @@ export class ArticlesController {
   @Post(':slug/view')
   @Public()
   @ApiOperation({ summary: 'Increment view count for an article' })
-  incrementViewCount(
-    @Param('slug') slug: string,
-    @Req() req: any,
-  ) {
+  incrementViewCount(@Param('slug') slug: string, @Req() req: any) {
     const ip: string = req.ip ?? req.socket?.remoteAddress ?? 'unknown';
     return this.articlesService.incrementViewCount(slug, ip);
   }

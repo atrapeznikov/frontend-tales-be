@@ -49,12 +49,10 @@ describe('CaptchaService', () => {
 
     it('should return true when Yandex returns ok status', async () => {
       mockConfigService.get.mockReturnValue('secret');
-      const fetchSpy = jest
-        .spyOn(global, 'fetch')
-        .mockResolvedValue({
-          ok: true,
-          json: async () => ({ status: 'ok' }),
-        } as Response);
+      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        json: async () => ({ status: 'ok' }),
+      } as Response);
 
       const result = await service.verify('token', '1.2.3.4');
 

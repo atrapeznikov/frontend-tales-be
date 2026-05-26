@@ -11,9 +11,14 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     private readonly usersService: UsersService,
   ) {
     super({
-      clientID: configService.get<string>('GITHUB_CLIENT_ID') || 'dummy-client-id',
-      clientSecret: configService.get<string>('GITHUB_CLIENT_SECRET') || 'dummy-client-secret',
-      callbackURL: configService.get<string>('GITHUB_CALLBACK_URL') || 'http://localhost:3000/auth/github/callback',
+      clientID:
+        configService.get<string>('GITHUB_CLIENT_ID') || 'dummy-client-id',
+      clientSecret:
+        configService.get<string>('GITHUB_CLIENT_SECRET') ||
+        'dummy-client-secret',
+      callbackURL:
+        configService.get<string>('GITHUB_CALLBACK_URL') ||
+        'http://localhost:3000/auth/github/callback',
       scope: ['user:email'],
     });
   }
@@ -26,7 +31,12 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
   ): Promise<void> {
     const email = profile.emails?.[0]?.value;
     if (!email) {
-      done(new Error('GitHub account has no public email. Please set one in GitHub settings.'), undefined);
+      done(
+        new Error(
+          'GitHub account has no public email. Please set one in GitHub settings.',
+        ),
+        undefined,
+      );
       return;
     }
 
@@ -34,8 +44,7 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
       provider: 'GITHUB',
       providerAccountId: profile.id,
       email,
-      displayName:
-        profile.displayName || profile.username || email,
+      displayName: profile.displayName || profile.username || email,
       avatarUrl: profile.photos?.[0]?.value,
       accessToken,
       refreshToken,

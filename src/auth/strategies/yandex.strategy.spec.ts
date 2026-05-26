@@ -103,17 +103,20 @@ describe('YandexStrategy', () => {
       const done = jest.fn();
       strategy.userProfile('access', done);
 
-      expect(done).toHaveBeenCalledWith(null, expect.objectContaining({
-        id: 'yid-1',
-        displayName: 'Alex',
-        emails: [{ value: 'a@b.com' }],
-        photos: [
-          {
-            value:
-              'https://avatars.yandex.net/get-yapic/avatar-id/islands-200',
-          },
-        ],
-      }));
+      expect(done).toHaveBeenCalledWith(
+        null,
+        expect.objectContaining({
+          id: 'yid-1',
+          displayName: 'Alex',
+          emails: [{ value: 'a@b.com' }],
+          photos: [
+            {
+              value:
+                'https://avatars.yandex.net/get-yapic/avatar-id/islands-200',
+            },
+          ],
+        }),
+      );
     });
 
     it('should fall back to real_name then login when display_name missing', () => {

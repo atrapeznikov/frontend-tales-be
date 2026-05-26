@@ -28,6 +28,7 @@ model User {
   email        String   @unique
   passwordHash String?  @map("password_hash")
   displayName  String   @map("display_name")
+  nickname     String?  @unique @map("nickname")
   avatarUrl    String?  @map("avatar_url")
   role         Role     @default(USER)
   createdAt    DateTime @default(now()) @map("created_at")
@@ -35,6 +36,9 @@ model User {
 
   oauthAccounts OAuthAccount[]
   courses       Course[]
+  comments      Comment[]
+  commentReplies CommentReply[]
+  reactions     CommentReaction[]
 
   @@map("users")
 }
@@ -102,6 +106,7 @@ model Article {
 
   translations ArticleTranslation[]
   tags         Tag[]                @relation("ArticleTags")
+  comments     Comment[]
 
   @@index([status, publishedAt(sort: Desc)])
   @@map("articles")
@@ -235,3 +240,68 @@ model RoadmapItemTranslation {
   @@index([language])
   @@map("roadmap_item_translations")
 }
+
+// ─── Comments ───────────────────────────────────────────────────────────────
+
+enum ReactionType {
+  LIKE
+  FIRE
+  LAUGH
+  DISLIKE
+  MOON
+}
+
+
+model Comment {
+  id        String   @id @default(uuid()) @db.Uuid
+  articleId String   @map("article_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  article   Article           @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies   CommentReply[]
+  reactions CommentReaction[]
+
+  @@index([articleId])
+  @@map("comments")
+}
+
+model CommentReply {
+  id        String   @id @default(uuid()) @db.Uuid
+  commentId String   @map("comment_id") @db.Uuid
+  parentId  String?  @map("parent_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  comment   Comment        @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  parent    CommentReply?  @relation("ReplyReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   CommentReply[] @relation("ReplyReplies")
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reactions CommentReaction[]
+
+  @@index([commentId, parentId])
+  @@map("comment_replies")
+}
+
+model CommentReaction {
+  id             String        @id @default(uuid()) @db.Uuid
+  userId         String        @map("user_id") @db.Uuid
+  type           ReactionType
+  commentId      String?       @map("comment_id") @db.Uuid
+  commentReplyId String?       @map("comment_reply_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment        Comment?      @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentReply   CommentReply? @relation(fields: [commentReplyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@unique([userId, commentReplyId])
+  @@map("comment_reactions")
+}
+

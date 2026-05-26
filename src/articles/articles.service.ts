@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RedisService } from '../redis/redis.service.js';
 import { CreateArticleDto, CreateTagDto } from './dto/create-article.dto.js';
@@ -43,13 +47,16 @@ export class ArticlesService {
   async create(dto: CreateArticleDto) {
     const { tags, translations, ...articleData } = dto;
 
-    const existing = await this.prisma.article.findUnique({ where: { slug: dto.slug } });
-    if (existing) throw new ConflictException('Article with this slug already exists');
+    const existing = await this.prisma.article.findUnique({
+      where: { slug: dto.slug },
+    });
+    if (existing)
+      throw new ConflictException('Article with this slug already exists');
 
     const data: any = {
       ...articleData,
       translations: {
-        create: translations.map(t => ({
+        create: translations.map((t) => ({
           language: t.language,
           title: t.title,
           description: t.description,
@@ -99,9 +106,7 @@ export class ArticlesService {
       where.translations = { some: { language } };
     }
 
-    const translationsInclude = language
-      ? { where: { language } }
-      : true;
+    const translationsInclude = language ? { where: { language } } : true;
 
     const [items, total] = await Promise.all([
       this.prisma.article.findMany({
@@ -133,9 +138,7 @@ export class ArticlesService {
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
-    const translationsInclude = language
-      ? { where: { language } }
-      : true;
+    const translationsInclude = language ? { where: { language } } : true;
 
     const article = await this.prisma.article.findUnique({
       where: { slug },
@@ -165,14 +168,18 @@ export class ArticlesService {
     const article = await this.prisma.article.findUnique({ where: { id } });
     if (!article) throw new NotFoundException('Article not found');
 
-    if (data.status === 'PUBLISHED' && article.status !== 'PUBLISHED' && !article.publishedAt) {
+    if (
+      data.status === 'PUBLISHED' &&
+      article.status !== 'PUBLISHED' &&
+      !article.publishedAt
+    ) {
       data.publishedAt = new Date();
     }
 
     // Update translations using upsert
     if (translations && translations.length > 0) {
       await Promise.all(
-        translations.map(t =>
+        translations.map((t) =>
           this.prisma.articleTranslation.upsert({
             where: {
               articleId_language: { articleId: id, language: t.language },
@@ -219,7 +226,10 @@ export class ArticlesService {
     const dedupeKey = `views:dedup:${slug}:${ip}`;
     const alreadyCounted = await this.redis.get(dedupeKey);
     if (alreadyCounted) {
-      const article = await this.prisma.article.findUnique({ where: { slug }, select: { viewCount: true } });
+      const article = await this.prisma.article.findUnique({
+        where: { slug },
+        select: { viewCount: true },
+      });
       return { viewCount: article?.viewCount ?? 0 };
     }
 
