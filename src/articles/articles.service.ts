@@ -8,6 +8,7 @@ import { RedisService } from '../redis/redis.service.js';
 import { CreateArticleDto, CreateTagDto } from './dto/create-article.dto.js';
 import { UpdateArticleDto, UpdateTagDto } from './dto/update-article.dto.js';
 import { ArticleFilterDto } from './dto/article-filter.dto.js';
+import { ToggleArticleReactionDto } from './dto/toggle-reaction.dto.js';
 
 @Injectable()
 export class ArticlesService {
@@ -111,7 +112,16 @@ export class ArticlesService {
     const [items, total] = await Promise.all([
       this.prisma.article.findMany({
         where,
-        include: { translations: translationsInclude, tags: true },
+        include: {
+          translations: translationsInclude,
+          tags: true,
+          reactions: {
+            select: {
+              userId: true,
+              type: true,
+            },
+          },
+        },
         orderBy: { publishedAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -142,7 +152,16 @@ export class ArticlesService {
 
     const article = await this.prisma.article.findUnique({
       where: { slug },
-      include: { translations: translationsInclude, tags: true },
+      include: {
+        translations: translationsInclude,
+        tags: true,
+        reactions: {
+          select: {
+            userId: true,
+            type: true,
+          },
+        },
+      },
     });
 
     if (!article) throw new NotFoundException('Article not found');
@@ -243,6 +262,44 @@ export class ArticlesService {
     await this.redis.delByPattern(`articles:slug:${slug}:*`);
 
     return { viewCount: article.viewCount };
+  }
+
+  async toggleReaction(articleId: string, userId: string, dto: ToggleArticleReactionDto) {
+    const article = await this.prisma.article.findUnique({
+      where: { id: articleId },
+    });
+
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    const existingReaction = await this.prisma.articleReaction.findUnique({
+      where: {
+        userId_articleId_type: {
+          userId,
+          articleId,
+          type: dto.type,
+        },
+      },
+    });
+
+    if (existingReaction) {
+      await this.prisma.articleReaction.delete({
+        where: { id: existingReaction.id },
+      });
+      await this.invalidateArticlesCache(article.slug);
+      return { reacted: false };
+    } else {
+      await this.prisma.articleReaction.create({
+        data: {
+          userId,
+          articleId,
+          type: dto.type,
+        },
+      });
+      await this.invalidateArticlesCache(article.slug);
+      return { reacted: true };
+    }
   }
 
   private async invalidateArticlesCache(slug?: string) {

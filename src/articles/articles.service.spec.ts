@@ -33,6 +33,11 @@ describe('ArticlesService', () => {
     articleTranslation: {
       upsert: jest.fn(),
     },
+    articleReaction: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    },
   };
 
   const mockRedis = {
@@ -253,7 +258,16 @@ describe('ArticlesService', () => {
           where: { status: ContentStatus.DRAFT },
           skip: 5,
           take: 5,
-          include: { translations: true, tags: true },
+          include: {
+            translations: true,
+            tags: true,
+            reactions: {
+              select: {
+                userId: true,
+                type: true,
+              },
+            },
+          },
           orderBy: { publishedAt: 'desc' },
         }),
       );
@@ -581,6 +595,58 @@ describe('ArticlesService', () => {
       });
       expect(mockRedis.delByPattern).toHaveBeenCalledWith('articles:slug:s:*');
       expect(result).toEqual({ viewCount: 5 });
+    });
+  });
+
+  describe('toggleReaction', () => {
+    it('should throw NotFoundException if article does not exist', async () => {
+      mockPrisma.article.findUnique.mockResolvedValue(null);
+      await expect(
+        service.toggleReaction('a1', 'u1', { type: 'LIKE' as any }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should delete existing reaction if it already exists (toggle off)', async () => {
+      mockPrisma.article.findUnique.mockResolvedValue({ id: 'a1', slug: 's' });
+      mockPrisma.articleReaction.findUnique.mockResolvedValue({ id: 'r1', userId: 'u1', articleId: 'a1', type: 'LIKE' });
+      mockPrisma.articleReaction.delete.mockResolvedValue({ id: 'r1' });
+
+      const result = await service.toggleReaction('a1', 'u1', { type: 'LIKE' as any });
+
+      expect(mockPrisma.articleReaction.findUnique).toHaveBeenCalledWith({
+        where: {
+          userId_articleId_type: {
+            userId: 'u1',
+            articleId: 'a1',
+            type: 'LIKE',
+          },
+        },
+      });
+      expect(mockPrisma.articleReaction.delete).toHaveBeenCalledWith({
+        where: { id: 'r1' },
+      });
+      expect(mockRedis.delByPattern).toHaveBeenCalledWith('articles:list:*');
+      expect(mockRedis.delByPattern).toHaveBeenCalledWith('articles:slug:s:*');
+      expect(result).toEqual({ reacted: false });
+    });
+
+    it('should create new reaction if it does not exist (toggle on)', async () => {
+      mockPrisma.article.findUnique.mockResolvedValue({ id: 'a1', slug: 's' });
+      mockPrisma.articleReaction.findUnique.mockResolvedValue(null);
+      mockPrisma.articleReaction.create.mockResolvedValue({ id: 'r1', userId: 'u1', articleId: 'a1', type: 'LIKE' });
+
+      const result = await service.toggleReaction('a1', 'u1', { type: 'LIKE' as any });
+
+      expect(mockPrisma.articleReaction.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'u1',
+          articleId: 'a1',
+          type: 'LIKE',
+        },
+      });
+      expect(mockRedis.delByPattern).toHaveBeenCalledWith('articles:list:*');
+      expect(mockRedis.delByPattern).toHaveBeenCalledWith('articles:slug:s:*');
+      expect(result).toEqual({ reacted: true });
     });
   });
 });
