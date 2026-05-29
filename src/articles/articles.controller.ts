@@ -8,6 +8,8 @@ import {
   Delete,
   Query,
   Req,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,6 +21,7 @@ import { ArticlesService } from './articles.service.js';
 import { CreateArticleDto, CreateTagDto } from './dto/create-article.dto.js';
 import { UpdateArticleDto, UpdateTagDto } from './dto/update-article.dto.js';
 import { ArticleFilterDto } from './dto/article-filter.dto.js';
+import { ToggleArticleReactionDto } from './dto/toggle-reaction.dto.js';
 import { Public, Roles, CurrentUser } from '../common/decorators/index.js';
 
 @ApiTags('Articles')
@@ -108,6 +111,18 @@ export class ArticlesController {
   @ApiOperation({ summary: 'Delete article (Admin)' })
   delete(@Param('id') id: string) {
     return this.articlesService.delete(id);
+  }
+
+  @Post(':id/reactions')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Toggle a reaction on an article' })
+  toggleReaction(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: ToggleArticleReactionDto,
+  ) {
+    return this.articlesService.toggleReaction(id, userId, dto);
   }
 
   @Post(':slug/view')
