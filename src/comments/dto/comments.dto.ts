@@ -7,6 +7,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ReactionType } from '@prisma/client';
+import { IsSafeText } from '../../common/validators/is-safe-text.decorator.js';
 
 export class PaginationQueryDto {
   @ApiPropertyOptional({
@@ -25,6 +26,7 @@ export class CreateCommentDto {
   })
   @IsString()
   @IsNotEmpty()
+  @IsSafeText()
   content: string;
 }
 
@@ -35,6 +37,7 @@ export class CreateReplyDto {
   })
   @IsString()
   @IsNotEmpty()
+  @IsSafeText()
   content: string;
 }
 
