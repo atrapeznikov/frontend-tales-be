@@ -59,12 +59,14 @@ async function main() {
     update: {
       passwordHash: hashedPassword,
       role: 'ADMIN',
+      nickname: 'e2eadmin',
     },
     create: {
       email,
       displayName: 'E2E Admin',
       passwordHash: hashedPassword,
       role: 'ADMIN',
+      nickname: 'e2eadmin',
     },
   });
 
