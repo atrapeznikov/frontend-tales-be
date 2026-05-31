@@ -96,6 +96,7 @@ describe('UsersService', () => {
         email: 'a@b.com',
         password: 'password',
         displayName: 'Alex',
+        nickname: 'alex',
       });
 
       expect(bcrypt.hash).toHaveBeenCalledWith('password', 12);
@@ -104,6 +105,7 @@ describe('UsersService', () => {
           email: 'a@b.com',
           passwordHash: 'hashed',
           displayName: 'Alex',
+          nickname: 'alex',
           avatarUrl: undefined,
           role: 'USER',
         },
@@ -115,7 +117,7 @@ describe('UsersService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.user.create.mockResolvedValue({ id: 'u1' });
 
-      await service.create({ email: 'a@b.com', displayName: 'Alex' });
+      await service.create({ email: 'a@b.com', displayName: 'Alex', nickname: 'alex' });
 
       expect(bcrypt.hash).not.toHaveBeenCalled();
       const callArg = mockPrisma.user.create.mock.calls[0][0];
@@ -130,6 +132,7 @@ describe('UsersService', () => {
           email: 'a@b.com',
           password: 'pw',
           displayName: 'Alex',
+          nickname: 'alex',
         }),
       ).rejects.toThrow(ConflictException);
       expect(mockPrisma.user.create).not.toHaveBeenCalled();

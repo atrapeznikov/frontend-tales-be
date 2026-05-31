@@ -20,7 +20,7 @@ describe('AuthController', () => {
   };
 
   const mockConfigService = {
-    get: jest.fn((key: string) => {
+    get: jest.fn((key: string): string | undefined => {
       const map: Record<string, string> = {
         FRONTEND_URL: 'https://frontend.example',
         NODE_ENV: 'production',
@@ -63,7 +63,7 @@ describe('AuthController', () => {
       const res = buildRes();
 
       const result = await controller.register(
-        { email: 'a@b.com', password: 'pw', displayName: 'Alex' },
+        { email: 'a@b.com', nickname: 'alex', password: 'pw', displayName: 'Alex' },
         res as any,
       );
 
@@ -93,7 +93,7 @@ describe('AuthController', () => {
       const res = buildRes();
 
       await controller.register(
-        { email: 'a@b.com', password: 'pw', displayName: 'Alex' },
+        { email: 'a@b.com', nickname: 'alex', password: 'pw', displayName: 'Alex' },
         res as any,
       );
 
@@ -165,6 +165,7 @@ describe('AuthController', () => {
       const user = {
         id: 'u1',
         email: 'a@b.com',
+        nickname: 'alex',
         role: 'USER',
         displayName: 'Alex',
         avatarUrl: null,

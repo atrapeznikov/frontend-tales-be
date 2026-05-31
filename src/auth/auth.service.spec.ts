@@ -47,6 +47,7 @@ describe('AuthService', () => {
     email: 'a@b.com',
     role: 'USER',
     displayName: 'Alex',
+    nickname: 'alex',
     passwordHash: 'hashed',
     avatarUrl: null,
     createdAt: new Date(),
@@ -84,12 +85,14 @@ describe('AuthService', () => {
         email: 'a@b.com',
         password: 'pw',
         displayName: 'Alex',
+        nickname: 'alex',
       });
 
       expect(mockUsersService.create).toHaveBeenCalledWith({
         email: 'a@b.com',
         password: 'pw',
         displayName: 'Alex',
+        nickname: 'alex',
       });
       expect(result).toEqual({
         accessToken: 'access-token',

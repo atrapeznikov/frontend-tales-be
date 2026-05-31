@@ -67,7 +67,7 @@ describe('RedisService', () => {
 
       new RedisService(cs);
 
-      const args = (Redis as jest.Mock).mock.calls[0][0];
+      const args = (Redis as unknown as jest.Mock).mock.calls[0][0];
       expect(args).not.toHaveProperty('password');
     });
 
