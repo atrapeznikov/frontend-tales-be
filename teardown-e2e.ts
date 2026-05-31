@@ -90,6 +90,14 @@ async function main() {
   });
   console.log(`Deleted ${roadmapCount} E2E roadmap section(s).`);
 
+  // --- Users ---
+  const { count: userCount } = await prisma.user.deleteMany({
+    where: {
+      email: { endsWith: '@frontendtales.ru' },
+    },
+  });
+  console.log(`Deleted ${userCount} E2E user(s).`);
+
   // Clear Redis cache so the deleted items are removed from cache as well
   await clearRedisCache();
 
