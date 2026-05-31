@@ -18,8 +18,10 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
         'dummy-client-secret',
       callbackURL:
         configService.get<string>('GITHUB_CALLBACK_URL') ||
-        'http://localhost:3000/auth/github/callback',
+        'http://localhost:3000/api/auth/github/callback',
       scope: ['user:email'],
+      // NOTE: state parameter requires express-session. The single-use OAuth
+      // authorization code pattern (60s TTL) partially mitigates OAuth CSRF.
     });
   }
 

@@ -20,11 +20,13 @@ export class YandexStrategy extends PassportStrategy(Strategy, 'yandex') {
         'dummy-client-secret',
       callbackURL:
         configService.get<string>('YANDEX_CALLBACK_URL') ||
-        'http://localhost:3000/auth/yandex/callback',
+        'http://localhost:3000/api/auth/yandex/callback',
       authorizationURL: 'https://oauth.yandex.ru/authorize',
       tokenURL: 'https://oauth.yandex.ru/token',
       userProfileURL: 'https://login.yandex.ru/info?format=json',
       scope: ['login:email', 'login:info', 'login:avatar'],
+      // NOTE: state parameter requires express-session. The single-use OAuth
+      // authorization code pattern (60s TTL) partially mitigates OAuth CSRF.
     });
   }
 

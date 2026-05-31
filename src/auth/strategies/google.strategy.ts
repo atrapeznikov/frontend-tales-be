@@ -18,8 +18,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         'dummy-client-secret',
       callbackURL:
         configService.get<string>('GOOGLE_CALLBACK_URL') ||
-        'http://localhost:3000/auth/google/callback',
+        'http://localhost:3000/api/auth/google/callback',
       scope: ['email', 'profile'],
+      // NOTE: state parameter requires express-session. The single-use OAuth
+      // authorization code pattern (60s TTL) partially mitigates OAuth CSRF.
     });
   }
 

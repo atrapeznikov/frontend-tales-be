@@ -1,0 +1,1 @@
+Never read, output, or access .env files, API keys, or sensitive credentials

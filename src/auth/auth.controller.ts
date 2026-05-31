@@ -56,6 +56,7 @@ export class AuthController {
   ) {}
 
   @Public()
+  @UseInterceptors(CaptchaInterceptor)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
@@ -231,7 +232,7 @@ export class AuthController {
     res.cookie('refresh_token', token, {
       httpOnly: true,
       secure: this.configService.get<string>('NODE_ENV') === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/api/auth',
     });

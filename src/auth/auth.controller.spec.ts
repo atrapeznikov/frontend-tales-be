@@ -73,7 +73,7 @@ describe('AuthController', () => {
         expect.objectContaining({
           httpOnly: true,
           secure: true,
-          sameSite: 'lax',
+          sameSite: 'strict',
           path: '/api/auth',
         }),
       );

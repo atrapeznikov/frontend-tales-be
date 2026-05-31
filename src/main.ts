@@ -51,7 +51,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalInterceptors(new TransformInterceptor());
 
   // Swagger (disabled in production)
-  if (configService.get<string>('NODE_ENV') !== 'production') {
+  if (configService.get<string>('NODE_ENV') === 'development') {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('Frontend Tales API')
       .setDescription('Educational blog platform API')

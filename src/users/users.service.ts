@@ -38,7 +38,9 @@ export class UsersService {
   }) {
     const existing = await this.findByEmail(data.email);
     if (existing) {
-      throw new ConflictException('User with this email already exists');
+      throw new ConflictException(
+        'An account with this information already exists',
+      );
     }
 
     const existingNickname = await this.prisma.user.findUnique({
@@ -75,6 +77,11 @@ export class UsersService {
     accessToken?: string;
     refreshToken?: string;
   }) {
+    // Sanitize OAuth display name — strip HTML tags to prevent stored XSS
+    const sanitizedDisplayName = profile.displayName
+      .replace(/<[^>]*>/g, '')
+      .trim() || profile.email.split('@')[0];
+
     // 1. Check if OAuth account already linked
     const existingOAuth = await this.prisma.oAuthAccount.findUnique({
       where: {
@@ -111,7 +118,7 @@ export class UsersService {
     const role = usersCount === 0 ? 'ADMIN' : 'USER';
 
     // Generate unique nickname from displayName or email prefix
-    let baseNickname = profile.displayName.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+    let baseNickname = sanitizedDisplayName.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
     if (!baseNickname || baseNickname.length < 2) {
       baseNickname = profile.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
     }
@@ -130,7 +137,7 @@ export class UsersService {
     return this.prisma.user.create({
       data: {
         email: profile.email,
-        displayName: profile.displayName,
+        displayName: sanitizedDisplayName,
         nickname,
         avatarUrl: profile.avatarUrl,
         role,

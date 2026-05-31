@@ -31,6 +31,13 @@ export class CaptchaService {
     const secret = this.configService.get<string>('YANDEX_CAPTCHA_SECRET');
 
     if (!secret) {
+      const nodeEnv = this.configService.get<string>('NODE_ENV');
+      if (nodeEnv === 'production') {
+        this.logger.error(
+          'YANDEX_CAPTCHA_SECRET is not configured in production — blocking request',
+        );
+        return false;
+      }
       // Dev bypass — no secret configured.
       return true;
     }

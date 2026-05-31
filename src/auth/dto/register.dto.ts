@@ -1,11 +1,12 @@
 import {
   IsEmail,
   IsString,
+  IsOptional,
   MinLength,
   MaxLength,
   Matches,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RegisterDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -36,4 +37,12 @@ export class RegisterDto {
     message: 'Nickname must contain only letters, numbers, and underscores',
   })
   nickname!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Yandex SmartCaptcha token returned by the client widget. Required when YANDEX_CAPTCHA_SECRET is configured on the server.',
+  })
+  @IsOptional()
+  @IsString()
+  captchaToken?: string;
 }
