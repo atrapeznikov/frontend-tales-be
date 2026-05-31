@@ -1,11 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-google-oauth20';
+import { Strategy } from 'passport-oauth2';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../users/users.service.js';
 
-// Yandex OAuth2 uses a standard OAuth2 flow compatible with the Google strategy
-// We override the authorization and token URLs to point to Yandex
+// Yandex OAuth2 uses a standard OAuth2 flow
 @Injectable()
 export class YandexStrategy extends PassportStrategy(Strategy, 'yandex') {
   constructor(
@@ -23,8 +22,12 @@ export class YandexStrategy extends PassportStrategy(Strategy, 'yandex') {
         'http://localhost:3000/api/auth/yandex/callback',
       authorizationURL: 'https://oauth.yandex.ru/authorize',
       tokenURL: 'https://oauth.yandex.ru/token',
-      userProfileURL: 'https://login.yandex.ru/info?format=json',
-      scope: ['login:email', 'login:info', 'login:avatar'],
+      scope: (() => {
+        const scopes = configService.get<string>('YANDEX_SCOPES');
+        return scopes
+          ? scopes.split(',').map((s) => s.trim())
+          : ['login:email', 'login:info', 'login:avatar'];
+      })(),
       // NOTE: state parameter requires express-session. The single-use OAuth
       // authorization code pattern (60s TTL) partially mitigates OAuth CSRF.
     });
@@ -34,38 +37,39 @@ export class YandexStrategy extends PassportStrategy(Strategy, 'yandex') {
     accessToken: string,
     done: (err: any, profile?: any) => void,
   ): void {
-    (this as any)._oauth2.get(
-      'https://login.yandex.ru/info?format=json',
-      accessToken,
-
-      (err: any, body: string | Buffer | undefined) => {
-        if (err) {
-          done(err);
-          return;
-        }
-
-        try {
-          const json = JSON.parse(body as string);
-          const profile = {
-            id: json.id,
-            displayName: json.display_name || json.real_name || json.login,
-            emails: json.default_email ? [{ value: json.default_email }] : [],
-            photos: json.default_avatar_id
-              ? [
-                  {
-                    value: `https://avatars.yandex.net/get-yapic/${json.default_avatar_id}/islands-200`,
-                  },
-                ]
-              : [],
-            _raw: body,
-            _json: json,
-          };
-          done(null, profile);
-        } catch (e) {
-          done(e);
-        }
+    fetch('https://login.yandex.ru/info?format=json', {
+      headers: {
+        Authorization: `OAuth ${accessToken}`,
       },
-    );
+    })
+      .then((res) => {
+        if (!res.ok) {
+          return res.text().then((text) => {
+            throw new Error(`Yandex API returned ${res.status}: ${text}`);
+          });
+        }
+        return res.json();
+      })
+      .then((json) => {
+        const profile = {
+          id: json.id,
+          displayName: json.display_name || json.real_name || json.login,
+          emails: json.default_email ? [{ value: json.default_email }] : [],
+          photos: json.default_avatar_id
+            ? [
+                {
+                  value: `https://avatars.yandex.net/get-yapic/${json.default_avatar_id}/islands-200`,
+                },
+              ]
+            : [],
+          _raw: JSON.stringify(json),
+          _json: json,
+        };
+        done(null, profile);
+      })
+      .catch((err) => {
+        done(err);
+      });
   }
 
   async validate(

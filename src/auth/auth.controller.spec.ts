@@ -16,6 +16,7 @@ describe('AuthController', () => {
     logout: jest.fn(),
     createOAuthCode: jest.fn(),
     exchangeOAuthCode: jest.fn(),
+    setupNickname: jest.fn(),
   };
 
   const mockConfigService = {
@@ -187,6 +188,30 @@ describe('AuthController', () => {
       expect(mockAuthService.exchangeOAuthCode).toHaveBeenCalledWith('code');
       expect(res.cookie).toHaveBeenCalled();
       expect(result).toEqual({ accessToken: 'a' });
+    });
+  });
+
+  describe('setupNickname', () => {
+    it('should update nickname, set refresh cookie, and return access token', async () => {
+      mockAuthService.setupNickname.mockResolvedValue({
+        accessToken: 'new-a',
+        refreshToken: 'new-r',
+      });
+      const res = buildRes();
+
+      const result = await controller.setupNickname(
+        'u1',
+        { nickname: 'newnickname' },
+        res as any,
+      );
+
+      expect(mockAuthService.setupNickname).toHaveBeenCalledWith('u1', 'newnickname');
+      expect(res.cookie).toHaveBeenCalledWith(
+        'refresh_token',
+        'new-r',
+        expect.any(Object),
+      );
+      expect(result).toEqual({ accessToken: 'new-a' });
     });
   });
 

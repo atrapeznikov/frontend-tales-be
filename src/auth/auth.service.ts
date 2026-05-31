@@ -96,6 +96,11 @@ export class AuthService {
     this.logger.log(`User ${userId} logged out`);
   }
 
+  async setupNickname(userId: string, nickname: string): Promise<TokensDto> {
+    const user = await this.usersService.updateNickname(userId, nickname);
+    return this.generateTokens(user);
+  }
+
   /**
    * Creates a single-use, short-lived authorization code for OAuth callbacks.
    * The code is stored in Redis and expires in 60 seconds.

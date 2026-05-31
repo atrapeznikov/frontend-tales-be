@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import * as bcrypt from 'bcrypt';
@@ -117,28 +118,11 @@ export class UsersService {
     const usersCount = await this.prisma.user.count();
     const role = usersCount === 0 ? 'ADMIN' : 'USER';
 
-    // Generate unique nickname from displayName or email prefix
-    let baseNickname = sanitizedDisplayName.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
-    if (!baseNickname || baseNickname.length < 2) {
-      baseNickname = profile.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
-    }
-    if (!baseNickname || baseNickname.length < 2) {
-      baseNickname = 'user_' + Math.random().toString(36).substring(2, 7);
-    }
-    baseNickname = baseNickname.slice(0, 25);
-
-    let nickname = baseNickname;
-    let suffix = 1;
-    while (await this.prisma.user.findUnique({ where: { nickname } })) {
-      nickname = `${baseNickname}_${suffix}`;
-      suffix++;
-    }
-
     return this.prisma.user.create({
       data: {
         email: profile.email,
         displayName: sanitizedDisplayName,
-        nickname,
+        nickname: null, // Left as null until user sets it
         avatarUrl: profile.avatarUrl,
         role,
         oauthAccounts: {
@@ -148,6 +132,25 @@ export class UsersService {
           },
         },
       },
+    });
+  }
+
+  async updateNickname(userId: string, nickname: string) {
+    const existing = await this.prisma.user.findUnique({
+      where: { nickname },
+    });
+    if (existing) {
+      throw new ConflictException('User with this nickname already exists');
+    }
+
+    const user = await this.findByIdOrThrow(userId);
+    if (user.nickname) {
+      throw new BadRequestException('Nickname is already set');
+    }
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { nickname },
     });
   }
 

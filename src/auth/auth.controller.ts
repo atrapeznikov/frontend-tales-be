@@ -24,6 +24,7 @@ import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { AccessTokenDto } from './dto/tokens.dto.js';
+import { SetupNicknameDto } from './dto/setup-nickname.dto.js';
 import { Public, CurrentUser } from '../common/decorators/index.js';
 import {
   LoginRateLimitInterceptor,
@@ -127,6 +128,21 @@ export class AuthController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<AuthenticatedUser> {
     return user;
+  }
+
+  @Post('setup-nickname')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Setup nickname for OAuth registration' })
+  @ApiResponse({ status: 200, type: AccessTokenDto })
+  async setupNickname(
+    @CurrentUser('id') userId: string,
+    @Body() dto: SetupNicknameDto,
+    @Res({ passthrough: true }) res: express.Response,
+  ): Promise<AccessTokenDto> {
+    const tokens = await this.authService.setupNickname(userId, dto.nickname);
+    this.setRefreshTokenCookie(res, tokens.refreshToken);
+    return { accessToken: tokens.accessToken };
   }
 
   @Public()

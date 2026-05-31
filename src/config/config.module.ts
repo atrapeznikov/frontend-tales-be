@@ -42,6 +42,7 @@ import * as Joi from 'joi';
         YANDEX_CLIENT_ID: Joi.string().optional().allow(''),
         YANDEX_CLIENT_SECRET: Joi.string().optional().allow(''),
         YANDEX_CALLBACK_URL: Joi.string().optional().allow(''),
+        YANDEX_SCOPES: Joi.string().optional().allow(''),
 
         // Frontend
         FRONTEND_URL: Joi.string().default('http://localhost:3001'),

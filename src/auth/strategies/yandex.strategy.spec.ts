@@ -25,6 +25,40 @@ describe('YandexStrategy', () => {
     );
   });
 
+  describe('constructor', () => {
+    it('should use default scopes when YANDEX_SCOPES is not configured', () => {
+      expect((strategy as any)._scope).toEqual([
+        'login:email',
+        'login:info',
+        'login:avatar',
+      ]);
+    });
+
+    it('should parse custom scopes from YANDEX_SCOPES environment variable', () => {
+      const customConfig = {
+        get: jest.fn().mockImplementation((key: string) => {
+          const map: Record<string, string> = {
+            YANDEX_CLIENT_ID: 'yid',
+            YANDEX_CLIENT_SECRET: 'ysecret',
+            YANDEX_CALLBACK_URL: 'https://x/cb',
+            YANDEX_SCOPES: 'login:email, login:info',
+          };
+          return map[key];
+        }),
+      } as unknown as ConfigService;
+
+      const customStrategy = new YandexStrategy(
+        customConfig,
+        usersService as unknown as UsersService,
+      );
+
+      expect((customStrategy as any)._scope).toEqual([
+        'login:email',
+        'login:info',
+      ]);
+    });
+  });
+
   describe('validate', () => {
     it('should resolve user when profile has email', async () => {
       const user = { id: 'u1' };
@@ -78,30 +112,40 @@ describe('YandexStrategy', () => {
   });
 
   describe('userProfile', () => {
-    it('should map yandex profile fields and call done with parsed object', () => {
-      const oauth2Mock = {
-        get: jest.fn(
-          (
-            _url: string,
-            _token: string,
-            cb: (err: any, body?: string) => void,
-          ) => {
-            cb(
-              null,
-              JSON.stringify({
-                id: 'yid-1',
-                display_name: 'Alex',
-                default_email: 'a@b.com',
-                default_avatar_id: 'avatar-id',
-              }),
-            );
-          },
-        ),
-      };
-      (strategy as any)._oauth2 = oauth2Mock;
+    let originalFetch: typeof global.fetch;
+
+    beforeAll(() => {
+      originalFetch = global.fetch;
+    });
+
+    afterAll(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('should map yandex profile fields and call done with parsed object', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: 'yid-1',
+          display_name: 'Alex',
+          default_email: 'a@b.com',
+          default_avatar_id: 'avatar-id',
+        }),
+      });
 
       const done = jest.fn();
       strategy.userProfile('access', done);
+
+      await new Promise(process.nextTick);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://login.yandex.ru/info?format=json',
+        expect.objectContaining({
+          headers: {
+            Authorization: 'OAuth access',
+          },
+        }),
+      );
 
       expect(done).toHaveBeenCalledWith(
         null,
@@ -119,62 +163,61 @@ describe('YandexStrategy', () => {
       );
     });
 
-    it('should fall back to real_name then login when display_name missing', () => {
-      const oauth2Mock = {
-        get: jest.fn((_u: string, _t: string, cb: any) => {
-          cb(
-            null,
-            JSON.stringify({
-              id: 'yid-1',
-              real_name: 'Real Alex',
-              login: 'alex',
-            }),
-          );
+    it('should fall back to real_name then login when display_name missing', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: 'yid-1',
+          real_name: 'Real Alex',
+          login: 'alex',
         }),
-      };
-      (strategy as any)._oauth2 = oauth2Mock;
+      });
       const done = jest.fn();
 
       strategy.userProfile('access', done);
+      await new Promise(process.nextTick);
+
       expect(done.mock.calls[0][1].displayName).toBe('Real Alex');
     });
 
-    it('should produce empty emails and photos arrays when missing', () => {
-      const oauth2Mock = {
-        get: jest.fn((_u: string, _t: string, cb: any) => {
-          cb(null, JSON.stringify({ id: 'yid-1', login: 'alex' }));
-        }),
-      };
-      (strategy as any)._oauth2 = oauth2Mock;
+    it('should produce empty emails and photos arrays when missing', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: 'yid-1', login: 'alex' }),
+      });
       const done = jest.fn();
 
       strategy.userProfile('access', done);
+      await new Promise(process.nextTick);
 
       expect(done.mock.calls[0][1].emails).toEqual([]);
       expect(done.mock.calls[0][1].photos).toEqual([]);
       expect(done.mock.calls[0][1].displayName).toBe('alex');
     });
 
-    it('should propagate fetch error', () => {
+    it('should propagate fetch error', async () => {
       const err = new Error('http fail');
-      const oauth2Mock = {
-        get: jest.fn((_u: string, _t: string, cb: any) => cb(err)),
-      };
-      (strategy as any)._oauth2 = oauth2Mock;
+      global.fetch = jest.fn().mockRejectedValue(err);
       const done = jest.fn();
 
       strategy.userProfile('access', done);
+      await new Promise(process.nextTick);
+
       expect(done).toHaveBeenCalledWith(err);
     });
 
-    it('should propagate JSON parse error', () => {
-      const oauth2Mock = {
-        get: jest.fn((_u: string, _t: string, cb: any) => cb(null, 'not json')),
-      };
-      (strategy as any)._oauth2 = oauth2Mock;
+    it('should propagate JSON parse error', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => {
+          throw new Error('invalid json');
+        },
+      });
       const done = jest.fn();
 
       strategy.userProfile('access', done);
+      await new Promise(process.nextTick);
+
       expect(done).toHaveBeenCalledWith(expect.any(Error));
     });
   });
