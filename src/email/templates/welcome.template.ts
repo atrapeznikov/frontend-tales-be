@@ -20,8 +20,8 @@ export function getWelcomeEmailTemplate(data: WelcomeEmailData): {
   const greeting = isRu ? `Привет, ${displayName}!` : `Hey ${displayName},`;
 
   const intro = isRu
-    ? 'Добро пожаловать в сообщество Frontend Tales! Мы очень рады, что вы присоединились к нам. Наша платформа создана для того, чтобы разработчики могли узнавать новое, учиться и делиться опытом.'
-    : 'Welcome to the Frontend Tales community! We are absolutely thrilled to have you join us. Our platform is designed to help developers learn, share their knowledge and grow together.';
+    ? 'Добро пожаловать в сообщество Frontend Tales! <br> Мы очень рады, что вы присоединились к нам. Наша платформа создана для того, чтобы разработчики могли узнавать новое, учиться и делиться опытом.'
+    : 'Welcome to the Frontend Tales community! <br> We are absolutely thrilled to have you join us. Our platform is designed to help developers learn, share their knowledge and grow together.';
 
   const ready = isRu
     ? 'Готовы погрузиться? Нажмите кнопку ниже, чтобы перейти в личный кабинет'
@@ -30,8 +30,8 @@ export function getWelcomeEmailTemplate(data: WelcomeEmailData): {
   const buttonText = isRu ? 'Начать' : 'Get Started';
 
   const footerMessage = isRu
-    ? 'Если у вас возникнут вопросы, отзывы или вы просто захотите поздороваться, смело отвечайте на это письмо. Мы всегда готовы поддержать вас!'
-    : "If you have any questions, feedback, or just want to say hi, feel free to reply directly to this email. We're always here to support you!";
+    ? 'Если у вас возникнут вопросы или вы просто захотите поздороваться, смело отвечайте на это письмо.'
+    : "If you have any questions or just want to say hi, feel free to reply directly to this email.";
 
   const signOff = isRu
     ? 'С наилучшими пожеланиями,<br><strong>Команда Frontend Tales</strong>'
@@ -82,7 +82,7 @@ export function getWelcomeEmailTemplate(data: WelcomeEmailData): {
       border: 1px solid #e2e8f0;
     }
     .header {
-      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      background: linear-gradient(135deg, #08080cff 0%, rgba(12, 11, 37, 1) 100%);
       padding: 40px 20px;
       text-align: center;
     }
@@ -117,7 +117,7 @@ export function getWelcomeEmailTemplate(data: WelcomeEmailData): {
     }
     .cta-button {
       display: inline-block;
-      background-color: #4f46e5;
+      background-color: #08080cff;
       color: #ffffff !important;
       text-decoration: none;
       padding: 14px 30px;
