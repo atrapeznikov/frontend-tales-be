@@ -8,6 +8,7 @@ import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service.js';
 import { RedisService } from '../redis/redis.service.js';
+import { EmailService } from '../email/index.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { TokensDto } from './dto/tokens.dto.js';
@@ -41,15 +42,27 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
+    private readonly emailService: EmailService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<TokensDto> {
+  async register(dto: RegisterDto, lang?: 'en' | 'ru'): Promise<TokensDto> {
     const user = await this.usersService.create({
       email: dto.email,
       password: dto.password,
       displayName: dto.displayName,
       nickname: dto.nickname,
     });
+
+    const targetLang = lang || dto.lang;
+
+    this.emailService
+      .sendWelcomeEmail(user.email, user.displayName, targetLang)
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(
+          `Failed to send welcome email to ${user.email}: ${msg}`,
+        );
+      });
 
     return this.generateTokens(user);
   }

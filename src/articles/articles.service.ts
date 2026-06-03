@@ -264,7 +264,11 @@ export class ArticlesService {
     return { viewCount: article.viewCount };
   }
 
-  async toggleReaction(articleId: string, userId: string, dto: ToggleArticleReactionDto) {
+  async toggleReaction(
+    articleId: string,
+    userId: string,
+    dto: ToggleArticleReactionDto,
+  ) {
     const article = await this.prisma.article.findUnique({
       where: { id: articleId },
     });

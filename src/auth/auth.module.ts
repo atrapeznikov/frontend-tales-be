@@ -13,10 +13,12 @@ import {
 import { LoginRateLimitInterceptor, CaptchaInterceptor } from './interceptors';
 import { CaptchaService } from './captcha';
 import { UsersModule } from '../users';
+import { EmailModule } from '../email/index.js';
 
 @Module({
   imports: [
     UsersModule,
+    EmailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({}),
   ],

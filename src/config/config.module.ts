@@ -50,6 +50,24 @@ import * as Joi from 'joi';
         // Yandex SmartCaptcha (server-side verification)
         // Leave empty in local dev to skip verification.
         YANDEX_CAPTCHA_SECRET: Joi.string().optional().allow(''),
+
+        // Email Configuration
+        EMAIL_PROVIDER: Joi.string()
+          .valid('smtp', 'console')
+          .default('console'),
+        SMTP_HOST: Joi.string().when('EMAIL_PROVIDER', {
+          is: 'smtp',
+          then: Joi.required(),
+          otherwise: Joi.optional().allow(''),
+        }),
+        SMTP_PORT: Joi.number().default(587),
+        SMTP_USER: Joi.string().optional().allow(''),
+        SMTP_PASS: Joi.string().optional().allow(''),
+        SMTP_SECURE: Joi.boolean().default(false),
+        SMTP_FROM_EMAIL: Joi.string()
+          .email()
+          .default('noreply@frontendtales.com'),
+        SMTP_FROM_NAME: Joi.string().default('Frontend Tales'),
       }),
     }),
   ],

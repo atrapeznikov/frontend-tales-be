@@ -64,9 +64,13 @@ export class AuthController {
   @ApiResponse({ status: 201, type: AccessTokenDto })
   async register(
     @Body() dto: RegisterDto,
+    @Req() req: express.Request,
     @Res({ passthrough: true }) res: express.Response,
   ): Promise<AccessTokenDto> {
-    const tokens = await this.authService.register(dto);
+    const lang =
+      dto.lang ||
+      (req.headers['accept-language']?.startsWith('ru') ? 'ru' : 'en');
+    const tokens = await this.authService.register(dto, lang);
     this.setRefreshTokenCookie(res, tokens.refreshToken);
     return { accessToken: tokens.accessToken };
   }
@@ -124,9 +128,7 @@ export class AuthController {
   @Get('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })
-  async getMe(
-    @CurrentUser() user: AuthenticatedUser,
-  ): Promise<AuthenticatedUser> {
+  getMe(@CurrentUser() user: AuthenticatedUser): AuthenticatedUser {
     return user;
   }
 

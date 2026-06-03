@@ -9,6 +9,7 @@ import { UsersModule } from './users';
 import { ArticlesModule } from './articles';
 import { CommentsModule } from './comments';
 import { RoadmapModule } from './roadmap';
+import { EmailModule } from './email/index.js';
 import { JwtAuthGuard } from './auth/guards';
 import { RolesGuard } from './auth/guards';
 
@@ -17,6 +18,7 @@ import { RolesGuard } from './auth/guards';
     ConfigModule,
     PrismaModule,
     RedisModule,
+    EmailModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

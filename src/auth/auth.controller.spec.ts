@@ -63,7 +63,12 @@ describe('AuthController', () => {
       const res = buildRes();
 
       const result = await controller.register(
-        { email: 'a@b.com', nickname: 'alex', password: 'pw', displayName: 'Alex' },
+        {
+          email: 'a@b.com',
+          nickname: 'alex',
+          password: 'pw',
+          displayName: 'Alex',
+        },
         res as any,
       );
 
@@ -93,7 +98,12 @@ describe('AuthController', () => {
       const res = buildRes();
 
       await controller.register(
-        { email: 'a@b.com', nickname: 'alex', password: 'pw', displayName: 'Alex' },
+        {
+          email: 'a@b.com',
+          nickname: 'alex',
+          password: 'pw',
+          displayName: 'Alex',
+        },
         res as any,
       );
 
@@ -206,7 +216,10 @@ describe('AuthController', () => {
         res as any,
       );
 
-      expect(mockAuthService.setupNickname).toHaveBeenCalledWith('u1', 'newnickname');
+      expect(mockAuthService.setupNickname).toHaveBeenCalledWith(
+        'u1',
+        'newnickname',
+      );
       expect(res.cookie).toHaveBeenCalledWith(
         'refresh_token',
         'new-r',
