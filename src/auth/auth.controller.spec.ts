@@ -62,6 +62,7 @@ describe('AuthController', () => {
       });
       const res = buildRes();
 
+      const req = { headers: {} };
       const result = await controller.register(
         {
           email: 'a@b.com',
@@ -69,6 +70,7 @@ describe('AuthController', () => {
           password: 'pw',
           displayName: 'Alex',
         },
+        req as any,
         res as any,
       );
 
@@ -96,6 +98,7 @@ describe('AuthController', () => {
         refreshToken: 'r',
       });
       const res = buildRes();
+      const req = { headers: {} };
 
       await controller.register(
         {
@@ -104,6 +107,7 @@ describe('AuthController', () => {
           password: 'pw',
           displayName: 'Alex',
         },
+        req as any,
         res as any,
       );
 

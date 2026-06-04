@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { CommentsService } from './comments.service.js';
 import { CommentsController } from './comments.controller.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { EmailService } from '../email/index.js';
 import { ReactionType } from '@prisma/client';
 import { ROLES_KEY } from '../common/decorators/roles.decorator.js';
 
@@ -18,12 +19,14 @@ describe('CommentsService', () => {
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
     commentReply: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
     commentReaction: {
       findUnique: jest.fn(),
@@ -31,6 +34,13 @@ describe('CommentsService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    user: {
+      findMany: jest.fn(),
+    },
+  };
+
+  const mockEmailService = {
+    sendNewCommentNotification: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
@@ -38,6 +48,7 @@ describe('CommentsService', () => {
       providers: [
         CommentsService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: EmailService, useValue: mockEmailService },
       ],
     }).compile();
 
@@ -285,7 +296,7 @@ describe('CommentsService', () => {
   });
 
   describe('Comment Deletion (Test Case 4)', () => {
-    it('should soft delete top-level comment by setting content placeholder', async () => {
+    it('should delete top-level comment', async () => {
       const articleId = 'article-1';
       const commentId = 'comment-1';
 
@@ -294,21 +305,19 @@ describe('CommentsService', () => {
         id: commentId,
         articleId,
       });
-      mockPrisma.comment.update.mockResolvedValue({
+      mockPrisma.comment.delete.mockResolvedValue({
         id: commentId,
-        content: '[Comment deleted by admin]',
       });
 
       const result = await service.deleteComment(articleId, commentId);
 
-      expect(mockPrisma.comment.update).toHaveBeenCalledWith({
+      expect(mockPrisma.comment.delete).toHaveBeenCalledWith({
         where: { id: commentId },
-        data: { content: '[Comment deleted by admin]' },
       });
-      expect(result.content).toBe('[Comment deleted by admin]');
+      expect(result.id).toBe(commentId);
     });
 
-    it('should soft delete reply by setting content placeholder', async () => {
+    it('should delete reply', async () => {
       const articleId = 'article-1';
       const replyId = 'reply-1';
 
@@ -318,18 +327,16 @@ describe('CommentsService', () => {
         id: replyId,
         comment: { articleId },
       });
-      mockPrisma.commentReply.update.mockResolvedValue({
+      mockPrisma.commentReply.delete.mockResolvedValue({
         id: replyId,
-        content: '[Comment deleted by admin]',
       });
 
       const result = await service.deleteComment(articleId, replyId);
 
-      expect(mockPrisma.commentReply.update).toHaveBeenCalledWith({
+      expect(mockPrisma.commentReply.delete).toHaveBeenCalledWith({
         where: { id: replyId },
-        data: { content: '[Comment deleted by admin]' },
       });
-      expect(result.content).toBe('[Comment deleted by admin]');
+      expect(result.id).toBe(replyId);
     });
 
     it('should verify Admin guard requirements on Controller (Test Case 4 - guard)', () => {

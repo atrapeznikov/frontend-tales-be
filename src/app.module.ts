@@ -10,6 +10,7 @@ import { ArticlesModule } from './articles';
 import { CommentsModule } from './comments';
 import { RoadmapModule } from './roadmap';
 import { EmailModule } from './email/index.js';
+import { AdminModule } from './admin/admin.module.js';
 import { JwtAuthGuard } from './auth/guards';
 import { RolesGuard } from './auth/guards';
 
@@ -30,6 +31,7 @@ import { RolesGuard } from './auth/guards';
     ArticlesModule,
     CommentsModule,
     RoadmapModule,
+    AdminModule,
   ],
   providers: [
     {

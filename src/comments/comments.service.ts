@@ -2,8 +2,10 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { EmailService } from '../email/index.js';
 import {
   PaginationQueryDto,
   CreateCommentDto,
@@ -14,7 +16,12 @@ import { Comment, CommentReply, CommentReaction } from '@prisma/client';
 
 @Injectable()
 export class CommentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(CommentsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
 
   async getComments(articleId: string, query: PaginationQueryDto) {
     const { cursor } = query;
@@ -143,12 +150,13 @@ export class CommentsService {
   ) {
     const article = await this.prisma.article.findUnique({
       where: { id: articleId },
+      include: { translations: true },
     });
     if (!article) {
       throw new NotFoundException('Article not found');
     }
 
-    return this.prisma.comment.create({
+    const comment = await this.prisma.comment.create({
       data: {
         articleId,
         userId,
@@ -168,6 +176,12 @@ export class CommentsService {
         reactions: true,
       },
     });
+
+    this.sendAdminNotifications(article, comment.user, comment.id, comment.content).catch(err => {
+      this.logger.error(`Error in sendAdminNotifications for comment: ${err.message}`);
+    });
+
+    return comment;
   }
 
   async createReply(
@@ -178,6 +192,7 @@ export class CommentsService {
   ) {
     const article = await this.prisma.article.findUnique({
       where: { id: articleId },
+      include: { translations: true },
     });
     if (!article) {
       throw new NotFoundException('Article not found');
@@ -206,7 +221,7 @@ export class CommentsService {
       rootCommentId = parentReply.commentId;
     }
 
-    return this.prisma.commentReply.create({
+    const reply = await this.prisma.commentReply.create({
       data: {
         commentId: rootCommentId,
         parentId: rootCommentId === commentId ? null : commentId,
@@ -227,6 +242,12 @@ export class CommentsService {
         reactions: true,
       },
     });
+
+    this.sendAdminNotifications(article, reply.user, reply.id, reply.content).catch(err => {
+      this.logger.error(`Error in sendAdminNotifications for reply: ${err.message}`);
+    });
+
+    return reply;
   }
 
   async toggleReaction(
@@ -357,9 +378,8 @@ export class CommentsService {
       if (comment.articleId !== articleId) {
         throw new NotFoundException('Comment not found in this article');
       }
-      return this.prisma.comment.update({
+      return this.prisma.comment.delete({
         where: { id: commentId },
-        data: { content: '[Comment deleted by admin]' },
       });
     }
 
@@ -373,12 +393,44 @@ export class CommentsService {
       if (reply.comment.articleId !== articleId) {
         throw new NotFoundException('Reply not found in this article');
       }
-      return this.prisma.commentReply.update({
+      return this.prisma.commentReply.delete({
         where: { id: commentId },
-        data: { content: '[Comment deleted by admin]' },
       });
     }
 
     throw new NotFoundException('Comment or Reply not found');
+  }
+
+  private async sendAdminNotifications(
+    article: { id: string; slug: string; translations: Array<{ title: string; language: string }> },
+    author: { id: string; displayName: string; nickname?: string | null; email: string },
+    commentId: string,
+    content: string,
+  ) {
+    try {
+      const admins = await this.prisma.user.findMany({
+        where: { role: 'ADMIN' },
+      });
+      if (admins.length === 0) return;
+
+      const title = article.translations.find(t => t.language === 'ru')?.title 
+        || article.translations[0]?.title 
+        || 'Без названия';
+
+      for (const admin of admins) {
+        await this.emailService.sendNewCommentNotification(admin.email, {
+          articleId: article.id,
+          articleSlug: article.slug,
+          articleTitle: title,
+          commentId,
+          commentContent: content,
+          authorName: author.nickname || author.displayName,
+          authorEmail: author.email,
+          authorId: author.id,
+        });
+      }
+    } catch (error) {
+      this.logger.error(`Failed to send new comment notifications to admins: ${error}`);
+    }
   }
 }

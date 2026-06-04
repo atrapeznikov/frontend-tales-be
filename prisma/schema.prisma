@@ -31,6 +31,7 @@ model User {
   nickname     String?  @unique @map("nickname")
   avatarUrl    String?  @map("avatar_url")
   role         Role     @default(USER)
+  isBlocked    Boolean  @default(false) @map("is_blocked")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
