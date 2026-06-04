@@ -79,9 +79,9 @@ export class UsersService {
     refreshToken?: string;
   }) {
     // Sanitize OAuth display name — strip HTML tags to prevent stored XSS
-    const sanitizedDisplayName = profile.displayName
-      .replace(/<[^>]*>/g, '')
-      .trim() || profile.email.split('@')[0];
+    const sanitizedDisplayName =
+      profile.displayName.replace(/<[^>]*>/g, '').trim() ||
+      profile.email.split('@')[0];
 
     // 1. Check if OAuth account already linked
     const existingOAuth = await this.prisma.oAuthAccount.findUnique({

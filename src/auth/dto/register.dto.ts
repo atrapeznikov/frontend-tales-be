@@ -45,4 +45,13 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   captchaToken?: string;
+
+  @ApiPropertyOptional({
+    description: 'Language preference for system notifications / welcome email',
+    example: 'en',
+    enum: ['en', 'ru'],
+  })
+  @IsOptional()
+  @IsString()
+  lang?: 'en' | 'ru';
 }

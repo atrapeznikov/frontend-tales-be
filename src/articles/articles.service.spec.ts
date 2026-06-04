@@ -608,10 +608,17 @@ describe('ArticlesService', () => {
 
     it('should delete existing reaction if it already exists (toggle off)', async () => {
       mockPrisma.article.findUnique.mockResolvedValue({ id: 'a1', slug: 's' });
-      mockPrisma.articleReaction.findUnique.mockResolvedValue({ id: 'r1', userId: 'u1', articleId: 'a1', type: 'LIKE' });
+      mockPrisma.articleReaction.findUnique.mockResolvedValue({
+        id: 'r1',
+        userId: 'u1',
+        articleId: 'a1',
+        type: 'LIKE',
+      });
       mockPrisma.articleReaction.delete.mockResolvedValue({ id: 'r1' });
 
-      const result = await service.toggleReaction('a1', 'u1', { type: 'LIKE' as any });
+      const result = await service.toggleReaction('a1', 'u1', {
+        type: 'LIKE' as any,
+      });
 
       expect(mockPrisma.articleReaction.findUnique).toHaveBeenCalledWith({
         where: {
@@ -633,9 +640,16 @@ describe('ArticlesService', () => {
     it('should create new reaction if it does not exist (toggle on)', async () => {
       mockPrisma.article.findUnique.mockResolvedValue({ id: 'a1', slug: 's' });
       mockPrisma.articleReaction.findUnique.mockResolvedValue(null);
-      mockPrisma.articleReaction.create.mockResolvedValue({ id: 'r1', userId: 'u1', articleId: 'a1', type: 'LIKE' });
+      mockPrisma.articleReaction.create.mockResolvedValue({
+        id: 'r1',
+        userId: 'u1',
+        articleId: 'a1',
+        type: 'LIKE',
+      });
 
-      const result = await service.toggleReaction('a1', 'u1', { type: 'LIKE' as any });
+      const result = await service.toggleReaction('a1', 'u1', {
+        type: 'LIKE' as any,
+      });
 
       expect(mockPrisma.articleReaction.create).toHaveBeenCalledWith({
         data: {

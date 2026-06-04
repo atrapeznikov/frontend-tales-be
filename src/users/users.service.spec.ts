@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsersService } from './users.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import * as bcrypt from 'bcrypt';
@@ -117,7 +121,11 @@ describe('UsersService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.user.create.mockResolvedValue({ id: 'u1' });
 
-      await service.create({ email: 'a@b.com', displayName: 'Alex', nickname: 'alex' });
+      await service.create({
+        email: 'a@b.com',
+        displayName: 'Alex',
+        nickname: 'alex',
+      });
 
       expect(bcrypt.hash).not.toHaveBeenCalled();
       const callArg = mockPrisma.user.create.mock.calls[0][0];
@@ -249,8 +257,13 @@ describe('UsersService', () => {
     it('should update user nickname when unique and currently null', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null); // nickname not taken
       const user = { id: 'u1', nickname: null };
-      mockPrisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(user); // findUnique by id
-      mockPrisma.user.update.mockResolvedValue({ id: 'u1', nickname: 'newname' });
+      mockPrisma.user.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(user); // findUnique by id
+      mockPrisma.user.update.mockResolvedValue({
+        id: 'u1',
+        nickname: 'newname',
+      });
 
       const result = await service.updateNickname('u1', 'newname');
 
@@ -272,7 +285,10 @@ describe('UsersService', () => {
 
     it('should throw BadRequestException if user already has a nickname', async () => {
       mockPrisma.user.findUnique.mockResolvedValueOnce(null); // nickname not taken
-      mockPrisma.user.findUnique.mockResolvedValueOnce({ id: 'u1', nickname: 'already' }); // findById
+      mockPrisma.user.findUnique.mockResolvedValueOnce({
+        id: 'u1',
+        nickname: 'already',
+      }); // findById
 
       await expect(service.updateNickname('u1', 'newname')).rejects.toThrow(
         BadRequestException,

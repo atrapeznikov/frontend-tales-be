@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service.js';
 import { UsersService } from '../users/users.service.js';
 import { RedisService } from '../redis/redis.service.js';
+import { EmailService } from '../email/index.js';
 import * as bcrypt from 'bcrypt';
 
 jest.mock('bcrypt');
@@ -42,6 +43,10 @@ describe('AuthService', () => {
     del: jest.fn(),
   };
 
+  const mockEmailService = {
+    sendWelcomeEmail: jest.fn().mockResolvedValue(undefined),
+  };
+
   const userEntity = {
     id: 'u1',
     email: 'a@b.com',
@@ -62,6 +67,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: RedisService, useValue: mockRedisService },
+        { provide: EmailService, useValue: mockEmailService },
       ],
     }).compile();
 
@@ -102,6 +108,11 @@ describe('AuthService', () => {
         `user:session:${userEntity.id}`,
         'hashed-refresh',
         7 * 24 * 60 * 60,
+      );
+      expect(mockEmailService.sendWelcomeEmail).toHaveBeenCalledWith(
+        userEntity.email,
+        userEntity.displayName,
+        undefined,
       );
     });
   });
