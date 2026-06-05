@@ -1,12 +1,22 @@
-import { Controller, Patch, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Patch, Param, ParseUUIDPipe, Get } from '@nestjs/common';
 import { UsersService } from './users.service.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { CurrentUser } from '../common/decorators/index.js';
 
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('me/comments')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get comments left by the current user' })
+  @ApiResponse({ status: 200, description: 'Return list of user comments' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getMyComments(@CurrentUser('id') userId: string) {
+    return this.usersService.getUserComments(userId);
+  }
 
   @Patch(':userId/block')
   @Roles('ADMIN')

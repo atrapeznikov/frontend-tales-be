@@ -80,6 +80,21 @@ export class ArticlesController {
     return this.articlesService.findAll(filter, isAdmin);
   }
 
+  @Get('saved')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get saved articles for the current user' })
+  @ApiQuery({
+    name: 'language',
+    required: false,
+    description: 'Language code (en or ru)',
+  })
+  getSavedArticles(
+    @CurrentUser('id') userId: string,
+    @Query('language') language?: string,
+  ) {
+    return this.articlesService.getSavedArticles(userId, language);
+  }
+
   @Get(':slug')
   @Public()
   @ApiOperation({ summary: 'Get article by slug' })
@@ -123,6 +138,17 @@ export class ArticlesController {
     @Body() dto: ToggleArticleReactionDto,
   ) {
     return this.articlesService.toggleReaction(id, userId, dto);
+  }
+
+  @Post(':id/save')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Toggle save article to user profile' })
+  toggleSave(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.articlesService.toggleSave(id, userId);
   }
 
   @Post(':slug/view')

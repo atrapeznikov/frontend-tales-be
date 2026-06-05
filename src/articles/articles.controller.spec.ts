@@ -23,6 +23,8 @@ describe('ArticlesController', () => {
     update: jest.fn(),
     delete: jest.fn(),
     incrementViewCount: jest.fn(),
+    toggleSave: jest.fn(),
+    getSavedArticles: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -225,6 +227,28 @@ describe('ArticlesController', () => {
         's',
         'unknown',
       );
+    });
+  });
+
+  describe('toggleSave', () => {
+    it('should call service.toggleSave with id and userId', async () => {
+      mockArticlesService.toggleSave.mockResolvedValue({ saved: true });
+
+      const result = await controller.toggleSave('a1', 'u1');
+
+      expect(mockArticlesService.toggleSave).toHaveBeenCalledWith('a1', 'u1');
+      expect(result).toEqual({ saved: true });
+    });
+  });
+
+  describe('getSavedArticles', () => {
+    it('should call service.getSavedArticles with userId and language', async () => {
+      mockArticlesService.getSavedArticles.mockResolvedValue([{ id: 'a1' }]);
+
+      const result = await controller.getSavedArticles('u1', 'en');
+
+      expect(mockArticlesService.getSavedArticles).toHaveBeenCalledWith('u1', 'en');
+      expect(result).toEqual([{ id: 'a1' }]);
     });
   });
 });
