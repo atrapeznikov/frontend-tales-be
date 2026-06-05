@@ -29,6 +29,7 @@ interface UserEntity {
   nickname: string | null;
   passwordHash: string | null;
   avatarUrl: string | null;
+  isBlocked: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,6 +74,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (user.isBlocked) {
+      throw new UnauthorizedException('User is blocked');
+    }
+
     const isPasswordValid = await this.usersService.validatePassword(
       user,
       dto.password,
@@ -101,6 +106,9 @@ export class AuthService {
     }
 
     const user = await this.usersService.findByIdOrThrow(userId);
+    if (user.isBlocked) {
+      throw new ForbiddenException('User is blocked');
+    }
     return this.generateTokens(user);
   }
 
@@ -138,6 +146,9 @@ export class AuthService {
     await this.redisService.del(`oauth:code:${code}`);
 
     const user = await this.usersService.findByIdOrThrow(userId);
+    if (user.isBlocked) {
+      throw new UnauthorizedException('User is blocked');
+    }
     return this.generateTokens(user);
   }
 

@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RedisService } from '../redis/redis.service.js';
 import * as bcrypt from 'bcrypt';
 
 // Use Prisma-generated types via the service rather than importing enums directly
@@ -12,7 +13,10 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   async findById(id: string) {
     return this.prisma.user.findUnique({ where: { id } });
@@ -162,5 +166,22 @@ export class UsersService {
       return false;
     }
     return bcrypt.compare(password, user.passwordHash);
+  }
+
+  async blockUser(id: string) {
+    const user = await this.findByIdOrThrow(id);
+
+    if (user.role === 'ADMIN') {
+      throw new BadRequestException('Cannot block an administrator');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { isBlocked: true },
+    });
+
+    await this.redis.del(`user:session:${id}`);
+
+    return updatedUser;
   }
 }

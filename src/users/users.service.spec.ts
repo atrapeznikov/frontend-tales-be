@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RedisService } from '../redis/redis.service.js';
 import * as bcrypt from 'bcrypt';
 
 jest.mock('bcrypt');
@@ -26,11 +27,16 @@ describe('UsersService', () => {
     },
   };
 
+  const mockRedisService = {
+    del: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: mockRedisService },
       ],
     }).compile();
 
@@ -293,6 +299,31 @@ describe('UsersService', () => {
       await expect(service.updateNickname('u1', 'newname')).rejects.toThrow(
         BadRequestException,
       );
+    });
+  });
+
+  describe('blockUser', () => {
+    it('should successfully block user and delete redis session', async () => {
+      const user = { id: 'u1', role: 'USER' };
+      mockPrisma.user.findUnique.mockResolvedValue(user);
+      mockPrisma.user.update.mockResolvedValue({ id: 'u1', isBlocked: true });
+
+      const result = await service.blockUser('u1');
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: { isBlocked: true },
+      });
+      expect(mockRedisService.del).toHaveBeenCalledWith('user:session:u1');
+      expect(result.isBlocked).toBe(true);
+    });
+
+    it('should throw BadRequestException when trying to block an admin', async () => {
+      const user = { id: 'u1', role: 'ADMIN' };
+      mockPrisma.user.findUnique.mockResolvedValue(user);
+
+      await expect(service.blockUser('u1')).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
     });
   });
 });

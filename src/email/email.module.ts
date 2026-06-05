@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import { EmailService } from './email.service.js';
 import { MailProvider } from './interfaces/mail-provider.interface.js';
 import { ConsoleMailProvider } from './providers/console.provider.js';
 import { NodemailerMailProvider } from './providers/nodemailer.provider.js';
 
 @Module({
+  imports: [JwtModule.register({})],
   providers: [
     EmailService,
     ConsoleMailProvider,

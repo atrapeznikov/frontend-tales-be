@@ -1,5 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import * as path from 'path';
 import * as fs from 'fs';
 import {
@@ -7,6 +8,7 @@ import {
   SendMailOptions,
 } from './interfaces/mail-provider.interface.js';
 import { getWelcomeEmailTemplate } from './templates/welcome.template.js';
+import { getNewCommentTemplate } from './templates/new-comment.template.js';
 
 const possiblePaths = [
   path.join(__dirname, 'templates', 'avatar.png'),
@@ -29,7 +31,94 @@ export class EmailService {
   constructor(
     @Inject(MailProvider) private readonly mailProvider: MailProvider,
     private readonly configService: ConfigService,
+    private readonly jwtService: JwtService,
   ) {}
+
+  /**
+   * Sends a new comment notification email to an admin.
+   */
+  async sendNewCommentNotification(
+    to: string,
+    data: {
+      articleId: string;
+      articleSlug: string;
+      articleTitle: string;
+      commentId: string;
+      commentContent: string;
+      authorName: string;
+      authorEmail: string;
+      authorId: string;
+    },
+  ): Promise<void> {
+    const frontendUrl = this.configService.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:3001',
+    );
+    const backendUrl = this.configService.get<string>(
+      'BACKEND_URL',
+      'http://localhost:3000',
+    );
+
+    // Generate short-lived quick action tokens
+    const secret = this.configService.get<string>('JWT_ACCESS_SECRET');
+    const deleteToken = await this.jwtService.signAsync(
+      {
+        action: 'delete-comment',
+        articleId: data.articleId,
+        commentId: data.commentId,
+      },
+      {
+        secret,
+        expiresIn: '24h',
+      },
+    );
+
+    const blockToken = await this.jwtService.signAsync(
+      {
+        action: 'block-user',
+        userId: data.authorId,
+      },
+      {
+        secret,
+        expiresIn: '24h',
+      },
+    );
+
+    const deleteLink = `${backendUrl}/api/admin/quick-actions/confirm?action=delete-comment&articleId=${data.articleId}&commentId=${data.commentId}&token=${deleteToken}`;
+    const blockLink = `${backendUrl}/api/admin/quick-actions/confirm?action=block-user&userId=${data.authorId}&token=${blockToken}`;
+    const articleLink = `${frontendUrl}/ru/blog/${data.articleSlug}`;
+
+    const { subject, html, text } = getNewCommentTemplate({
+      articleTitle: data.articleTitle,
+      articleLink,
+      commentContent: data.commentContent,
+      authorName: data.authorName,
+      authorEmail: data.authorEmail,
+      authorId: data.authorId,
+      deleteLink,
+      blockLink,
+    });
+
+    try {
+      await this.sendWithRetry({
+        to,
+        subject,
+        html,
+        text,
+        attachments: [
+          {
+            filename: 'avatar.png',
+            path: avatarPath,
+            cid: 'avatar',
+          },
+        ],
+      });
+    } catch (error) {
+      this.logger.error(
+        `Critical: New comment notification could not be sent to admin ${to}: ${error}`,
+      );
+    }
+  }
 
   /**
    * Sends a welcome email to the newly registered user.

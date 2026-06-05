@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { EmailService } from './email.service.js';
 import { MailProvider } from './interfaces/mail-provider.interface.js';
 
@@ -13,8 +14,14 @@ describe('EmailService', () => {
   const mockConfigService = {
     get: jest.fn((key: string, defaultValue?: unknown) => {
       if (key === 'FRONTEND_URL') return 'http://test-frontend.com';
+      if (key === 'BACKEND_URL') return 'http://test-backend.com';
+      if (key === 'JWT_ACCESS_SECRET') return 'test-secret';
       return defaultValue;
     }),
+  };
+
+  const mockJwtService = {
+    signAsync: jest.fn().mockResolvedValue('mock-token'),
   };
 
   beforeEach(async () => {
@@ -23,6 +30,7 @@ describe('EmailService', () => {
         EmailService,
         { provide: MailProvider, useValue: mockMailProvider },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: JwtService, useValue: mockJwtService },
       ],
     }).compile();
 
