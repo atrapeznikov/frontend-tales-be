@@ -38,6 +38,12 @@ describe('ArticlesService', () => {
       create: jest.fn(),
       delete: jest.fn(),
     },
+    savedArticle: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    },
   };
 
   const mockRedis = {
@@ -661,6 +667,96 @@ describe('ArticlesService', () => {
       expect(mockRedis.delByPattern).toHaveBeenCalledWith('articles:list:*');
       expect(mockRedis.delByPattern).toHaveBeenCalledWith('articles:slug:s:*');
       expect(result).toEqual({ reacted: true });
+    });
+  });
+
+  describe('toggleSave', () => {
+    it('should throw NotFoundException if article does not exist', async () => {
+      mockPrisma.article.findUnique.mockResolvedValue(null);
+      await expect(service.toggleSave('a1', 'u1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should delete existing saved article if it already exists (toggle off)', async () => {
+      mockPrisma.article.findUnique.mockResolvedValue({ id: 'a1', slug: 's' });
+      mockPrisma.savedArticle.findUnique.mockResolvedValue({
+        id: 'sa1',
+        userId: 'u1',
+        articleId: 'a1',
+      });
+      mockPrisma.savedArticle.delete.mockResolvedValue({ id: 'sa1' });
+
+      const result = await service.toggleSave('a1', 'u1');
+
+      expect(mockPrisma.savedArticle.findUnique).toHaveBeenCalledWith({
+        where: {
+          userId_articleId: {
+            userId: 'u1',
+            articleId: 'a1',
+          },
+        },
+      });
+      expect(mockPrisma.savedArticle.delete).toHaveBeenCalledWith({
+        where: { id: 'sa1' },
+      });
+      expect(result).toEqual({ saved: false });
+    });
+
+    it('should create new saved article if it does not exist (toggle on)', async () => {
+      mockPrisma.article.findUnique.mockResolvedValue({ id: 'a1', slug: 's' });
+      mockPrisma.savedArticle.findUnique.mockResolvedValue(null);
+      mockPrisma.savedArticle.create.mockResolvedValue({
+        id: 'sa1',
+        userId: 'u1',
+        articleId: 'a1',
+      });
+
+      const result = await service.toggleSave('a1', 'u1');
+
+      expect(mockPrisma.savedArticle.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'u1',
+          articleId: 'a1',
+        },
+      });
+      expect(result).toEqual({ saved: true });
+    });
+  });
+
+  describe('getSavedArticles', () => {
+    it('should return saved articles for user', async () => {
+      const mockSaved = [
+        {
+          id: 'sa1',
+          userId: 'u1',
+          articleId: 'a1',
+          article: { id: 'a1', slug: 's1', translations: [], tags: [] },
+        },
+      ];
+      mockPrisma.savedArticle.findMany.mockResolvedValue(mockSaved);
+
+      const result = await service.getSavedArticles('u1', 'en');
+
+      expect(mockPrisma.savedArticle.findMany).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+        include: {
+          article: {
+            include: {
+              translations: { where: { language: 'en' } },
+              tags: true,
+              reactions: {
+                select: {
+                  userId: true,
+                  type: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(result).toEqual([mockSaved[0].article]);
     });
   });
 });

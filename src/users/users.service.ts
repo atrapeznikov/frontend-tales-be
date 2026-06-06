@@ -184,4 +184,62 @@ export class UsersService {
 
     return updatedUser;
   }
+
+  async getUserComments(userId: string) {
+    const [comments, replies] = await Promise.all([
+      this.prisma.comment.findMany({
+        where: { userId },
+        include: {
+          article: {
+            include: {
+              translations: true,
+            },
+          },
+        },
+      }),
+      this.prisma.commentReply.findMany({
+        where: { userId },
+        include: {
+          comment: {
+            include: {
+              article: {
+                include: {
+                  translations: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const formattedComments = comments.map((c) => ({
+      id: `comment-${c.id}`,
+      content: c.content,
+      createdAt: c.createdAt,
+      articleSlug: c.article.slug,
+      articleTranslations: c.article.translations.map((t) => ({
+        language: t.language,
+        title: t.title,
+      })),
+    }));
+
+    const formattedReplies = replies.map((r) => {
+      const article = r.comment.article;
+      return {
+        id: `reply-${r.id}`,
+        content: r.content,
+        createdAt: r.createdAt,
+        articleSlug: article.slug,
+        articleTranslations: article.translations.map((t) => ({
+          language: t.language,
+          title: t.title,
+        })),
+      };
+    });
+
+    return [...formattedComments, ...formattedReplies].sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    );
+  }
 }

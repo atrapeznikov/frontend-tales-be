@@ -25,6 +25,12 @@ describe('UsersService', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
     },
+    comment: {
+      findMany: jest.fn(),
+    },
+    commentReply: {
+      findMany: jest.fn(),
+    },
   };
 
   const mockRedisService = {
@@ -324,6 +330,84 @@ describe('UsersService', () => {
 
       await expect(service.blockUser('u1')).rejects.toThrow(BadRequestException);
       expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getUserComments', () => {
+    it('should query and return combined and sorted comments and replies', async () => {
+      const now = new Date();
+      const mockComments = [
+        {
+          id: 'c1',
+          content: 'Main comment',
+          createdAt: new Date(now.getTime() - 1000),
+          article: {
+            slug: 'slug1',
+            translations: [{ language: 'en', title: 'Article 1' }],
+          },
+        },
+      ];
+
+      const mockReplies = [
+        {
+          id: 'r1',
+          content: 'Reply comment',
+          createdAt: now,
+          comment: {
+            article: {
+              slug: 'slug2',
+              translations: [{ language: 'en', title: 'Article 2' }],
+            },
+          },
+        },
+      ];
+
+      mockPrisma.comment.findMany.mockResolvedValue(mockComments);
+      mockPrisma.commentReply.findMany.mockResolvedValue(mockReplies);
+
+      const result = await service.getUserComments('u1');
+
+      expect(mockPrisma.comment.findMany).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+        include: {
+          article: {
+            include: {
+              translations: true,
+            },
+          },
+        },
+      });
+
+      expect(mockPrisma.commentReply.findMany).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+        include: {
+          comment: {
+            include: {
+              article: {
+                include: {
+                  translations: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        id: 'reply-r1',
+        content: 'Reply comment',
+        createdAt: now,
+        articleSlug: 'slug2',
+        articleTranslations: [{ language: 'en', title: 'Article 2' }],
+      });
+      expect(result[1]).toEqual({
+        id: 'comment-c1',
+        content: 'Main comment',
+        createdAt: new Date(now.getTime() - 1000),
+        articleSlug: 'slug1',
+        articleTranslations: [{ language: 'en', title: 'Article 1' }],
+      });
     });
   });
 });

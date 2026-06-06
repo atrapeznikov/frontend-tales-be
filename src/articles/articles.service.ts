@@ -306,6 +306,65 @@ export class ArticlesService {
     }
   }
 
+  async toggleSave(articleId: string, userId: string) {
+    const article = await this.prisma.article.findUnique({
+      where: { id: articleId },
+    });
+
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    const existing = await this.prisma.savedArticle.findUnique({
+      where: {
+        userId_articleId: {
+          userId,
+          articleId,
+        },
+      },
+    });
+
+    if (existing) {
+      await this.prisma.savedArticle.delete({
+        where: { id: existing.id },
+      });
+      return { saved: false };
+    } else {
+      await this.prisma.savedArticle.create({
+        data: {
+          userId,
+          articleId,
+        },
+      });
+      return { saved: true };
+    }
+  }
+
+  async getSavedArticles(userId: string, language?: string) {
+    const translationsInclude = language ? { where: { language } } : true;
+
+    const saved = await this.prisma.savedArticle.findMany({
+      where: { userId },
+      include: {
+        article: {
+          include: {
+            translations: translationsInclude,
+            tags: true,
+            reactions: {
+              select: {
+                userId: true,
+                type: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return saved.map((s) => s.article);
+  }
+
   private async invalidateArticlesCache(slug?: string) {
     await this.redis.delByPattern('articles:list:*');
 
