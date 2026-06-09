@@ -86,6 +86,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (!user.avatarUrl) {
+      const defaultAvatar = this.usersService.getRandomDefaultAvatar();
+      const updatedUser = await this.usersService.updateAvatarUrl(user.id, defaultAvatar);
+      return this.generateTokens(updatedUser);
+    }
+
     return this.generateTokens(user);
   }
 

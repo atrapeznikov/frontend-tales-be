@@ -71,6 +71,14 @@ import * as Joi from 'joi';
           .email()
           .default('noreply@frontendtales.com'),
         SMTP_FROM_NAME: Joi.string().default('Frontend Tales'),
+
+        // S3 Configuration
+        S3_ENDPOINT: Joi.string().default('https://s3.twcstorage.ru'),
+        S3_REGION: Joi.string().default('ru-1'),
+        S3_ACCESS_KEY_ID: Joi.string().optional().allow(''),
+        S3_SECRET_ACCESS_KEY: Joi.string().optional().allow(''),
+        S3_BUCKET: Joi.string().default('806c1391-211a9e5f-91c1-412a-b689-4740a680b06e'),
+        AVATAR_DB_PREFIX: Joi.string().default('https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/'),
       }),
     }),
   ],

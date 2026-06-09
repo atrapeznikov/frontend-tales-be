@@ -3,9 +3,12 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RedisService } from '../redis/redis.service.js';
+import { S3Service } from '../s3/s3.service.js';
 import * as bcrypt from 'bcrypt';
 
 // Use Prisma-generated types via the service rather than importing enums directly
@@ -13,10 +16,22 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly configService: ConfigService,
+    private readonly s3Service: S3Service,
   ) {}
+
+  getRandomDefaultAvatar(): string {
+    const num = Math.floor(Math.random() * 10) + 1;
+    const prefix =
+      this.configService.get<string>('AVATAR_DB_PREFIX') ||
+      'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/';
+    return `${prefix}default${num}.svg`;
+  }
 
   async findById(id: string) {
     return this.prisma.user.findUnique({ where: { id } });
@@ -67,7 +82,7 @@ export class UsersService {
         passwordHash,
         displayName: data.displayName,
         nickname: data.nickname,
-        avatarUrl: data.avatarUrl,
+        avatarUrl: data.avatarUrl || this.getRandomDefaultAvatar(),
         role,
       },
     });
@@ -100,6 +115,14 @@ export class UsersService {
 
     if (existingOAuth) {
       // OAuth tokens are not stored — we only need them for the initial auth flow
+      if (!existingOAuth.user.avatarUrl) {
+        const defaultAvatar = this.getRandomDefaultAvatar();
+        const updatedUser = await this.prisma.user.update({
+          where: { id: existingOAuth.user.id },
+          data: { avatarUrl: defaultAvatar },
+        });
+        return updatedUser;
+      }
       return existingOAuth.user;
     }
 
@@ -115,6 +138,14 @@ export class UsersService {
           providerAccountId: profile.providerAccountId,
         },
       });
+      if (!existingUser.avatarUrl) {
+        const defaultAvatar = this.getRandomDefaultAvatar();
+        const updatedUser = await this.prisma.user.update({
+          where: { id: existingUser.id },
+          data: { avatarUrl: defaultAvatar },
+        });
+        return updatedUser;
+      }
       return existingUser;
     }
 
@@ -127,7 +158,7 @@ export class UsersService {
         email: profile.email,
         displayName: sanitizedDisplayName,
         nickname: null, // Left as null until user sets it
-        avatarUrl: profile.avatarUrl,
+        avatarUrl: profile.avatarUrl || this.getRandomDefaultAvatar(),
         role,
         oauthAccounts: {
           create: {
@@ -136,6 +167,66 @@ export class UsersService {
           },
         },
       },
+    });
+  }
+
+  async updateAvatar(userId: string, file: Express.Multer.File) {
+    // Ensure user exists
+    const user = await this.findByIdOrThrow(userId);
+
+    // Extract file extension
+    let extension = 'png';
+    if (file.originalname && file.originalname.includes('.')) {
+      extension = file.originalname.split('.').pop() || 'png';
+    } else if (file.mimetype) {
+      const parts = file.mimetype.split('/');
+      if (parts.length === 2) {
+        extension = parts[1];
+        if (extension === 'svg+xml') {
+          extension = 'svg';
+        }
+      }
+    }
+
+    // Generate unique S3 key
+    const filename = `${userId}-${Date.now()}.${extension}`;
+    const s3Key = `avatars/${filename}`;
+
+    // Upload to S3
+    await this.s3Service.uploadFile(file, s3Key);
+
+    // Construct the database CDN-prefixed avatar URL
+    const dbPrefix =
+      this.configService.get<string>('AVATAR_DB_PREFIX') ||
+      'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/';
+    const avatarUrl = `${dbPrefix}${filename}`;
+
+    // Delete old avatar from S3 if it was not a default avatar and was hosted on our S3
+    const oldAvatarUrl = user.avatarUrl;
+    if (oldAvatarUrl && oldAvatarUrl.startsWith(dbPrefix)) {
+      const isDefault = oldAvatarUrl.includes('default');
+      if (!isDefault) {
+        const oldFilename = oldAvatarUrl.replace(dbPrefix, '');
+        if (oldFilename) {
+          const oldS3Key = `avatars/${oldFilename}`;
+          await this.s3Service.deleteFile(oldS3Key).catch((err) => {
+            this.logger.warn(`Failed to delete old avatar ${oldS3Key}: ${err.message}`);
+          });
+        }
+      }
+    }
+
+    // Update user record in Prisma
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+    });
+  }
+
+  async updateAvatarUrl(userId: string, avatarUrl: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
     });
   }
 

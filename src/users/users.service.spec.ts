@@ -5,8 +5,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { UsersService } from './users.service.js';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RedisService } from '../redis/redis.service.js';
+import { S3Service } from '../s3/s3.service.js';
 import * as bcrypt from 'bcrypt';
 
 jest.mock('bcrypt');
@@ -37,12 +39,28 @@ describe('UsersService', () => {
     del: jest.fn(),
   };
 
+  const mockConfigService = {
+    get: jest.fn().mockImplementation((key: string) => {
+      if (key === 'AVATAR_DB_PREFIX') {
+        return 'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/';
+      }
+      return null;
+    }),
+  };
+
+  const mockS3Service = {
+    uploadFile: jest.fn().mockResolvedValue('https://s3.twcstorage.ru/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/test.png'),
+    deleteFile: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedisService },
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: S3Service, useValue: mockS3Service },
       ],
     }).compile();
 
@@ -122,7 +140,7 @@ describe('UsersService', () => {
           passwordHash: 'hashed',
           displayName: 'Alex',
           nickname: 'alex',
-          avatarUrl: undefined,
+          avatarUrl: expect.stringMatching(/default\d+\.svg/),
           role: 'USER',
         },
       });
@@ -171,7 +189,7 @@ describe('UsersService', () => {
     };
 
     it('should return user when oauth account already linked', async () => {
-      const linkedUser = { id: 'u1' };
+      const linkedUser = { id: 'u1', avatarUrl: 'https://x/y.png' };
       mockPrisma.oAuthAccount.findUnique.mockResolvedValue({
         user: linkedUser,
       });
@@ -184,7 +202,7 @@ describe('UsersService', () => {
 
     it('should link new oauth account when user with email exists', async () => {
       mockPrisma.oAuthAccount.findUnique.mockResolvedValue(null);
-      const existingUser = { id: 'u1', email: 'a@b.com' };
+      const existingUser = { id: 'u1', email: 'a@b.com', avatarUrl: 'https://x/y.png' };
       mockPrisma.user.findUnique.mockResolvedValue(existingUser);
       mockPrisma.oAuthAccount.create.mockResolvedValue({});
 
@@ -408,6 +426,96 @@ describe('UsersService', () => {
         articleSlug: 'slug1',
         articleTranslations: [{ language: 'en', title: 'Article 1' }],
       });
+    });
+  });
+
+  describe('getRandomDefaultAvatar', () => {
+    it('should return a valid default avatar URL', () => {
+      const avatar = service.getRandomDefaultAvatar();
+      expect(avatar).toMatch(/default\d+\.svg/);
+    });
+  });
+
+  describe('updateAvatar', () => {
+    it('should upload avatar to S3 and save CDN URL in DB', async () => {
+      const user = { id: 'u1', email: 'a@b.com' };
+      mockPrisma.user.findUnique.mockResolvedValue(user);
+      mockPrisma.user.update.mockResolvedValue({ ...user, avatarUrl: 'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-12345.png' });
+
+      const file = {
+        originalname: 'my-avatar.png',
+        buffer: Buffer.from('test'),
+        mimetype: 'image/png',
+      } as Express.Multer.File;
+
+      const result = await service.updateAvatar('u1', file);
+
+      expect(mockS3Service.uploadFile).toHaveBeenCalledWith(file, expect.stringContaining('avatars/u1-'));
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: { avatarUrl: expect.stringContaining('/avatars/u1-') },
+      });
+      expect(result.avatarUrl).toContain('u1-');
+    });
+
+    it('should delete the old avatar from S3 if it was not a default avatar and was hosted on our S3', async () => {
+      const user = {
+        id: 'u1',
+        email: 'a@b.com',
+        avatarUrl: 'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-old.png',
+      };
+      mockPrisma.user.findUnique.mockResolvedValue(user);
+      mockPrisma.user.update.mockResolvedValue({ ...user, avatarUrl: 'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-new.png' });
+
+      const file = {
+        originalname: 'my-avatar.png',
+        buffer: Buffer.from('test'),
+        mimetype: 'image/png',
+      } as Express.Multer.File;
+
+      await service.updateAvatar('u1', file);
+
+      expect(mockS3Service.deleteFile).toHaveBeenCalledWith('avatars/u1-old.png');
+    });
+
+    it('should NOT delete the old avatar from S3 if it was a default avatar', async () => {
+      const user = {
+        id: 'u1',
+        email: 'a@b.com',
+        avatarUrl: 'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/default3.svg',
+      };
+      mockPrisma.user.findUnique.mockResolvedValue(user);
+      mockPrisma.user.update.mockResolvedValue({ ...user, avatarUrl: 'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-new.png' });
+
+      const file = {
+        originalname: 'my-avatar.png',
+        buffer: Buffer.from('test'),
+        mimetype: 'image/png',
+      } as Express.Multer.File;
+
+      await service.updateAvatar('u1', file);
+
+      expect(mockS3Service.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it('should NOT delete the old avatar from S3 if it was an external OAuth URL', async () => {
+      const user = {
+        id: 'u1',
+        email: 'a@b.com',
+        avatarUrl: 'https://lh3.googleusercontent.com/a/some-photo',
+      };
+      mockPrisma.user.findUnique.mockResolvedValue(user);
+      mockPrisma.user.update.mockResolvedValue({ ...user, avatarUrl: 'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-new.png' });
+
+      const file = {
+        originalname: 'my-avatar.png',
+        buffer: Buffer.from('test'),
+        mimetype: 'image/png',
+      } as Express.Multer.File;
+
+      await service.updateAvatar('u1', file);
+
+      expect(mockS3Service.deleteFile).not.toHaveBeenCalled();
     });
   });
 });
