@@ -450,7 +450,11 @@ describe('UsersService', () => {
 
       const result = await service.updateAvatar('u1', file);
 
-      expect(mockS3Service.uploadFile).toHaveBeenCalledWith(file, expect.stringContaining('avatars/u1-'));
+      expect(mockS3Service.uploadFile).toHaveBeenCalledWith(
+        file,
+        expect.stringContaining('avatars/u1-'),
+        'image/png',
+      );
       expect(mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: 'u1' },
         data: { avatarUrl: expect.stringContaining('/avatars/u1-') },

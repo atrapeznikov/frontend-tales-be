@@ -2,19 +2,24 @@ import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtStrategy } from './jwt.strategy.js';
 import { UsersService } from '../../users/users.service.js';
+import { RedisService } from '../../redis/redis.service.js';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
   let usersService: { findById: jest.Mock };
+  let redisService: { get: jest.Mock };
   const configService = {
     get: jest.fn().mockReturnValue('access-secret'),
   } as unknown as ConfigService;
 
   beforeEach(() => {
     usersService = { findById: jest.fn() };
+    // No revocation cutoff by default.
+    redisService = { get: jest.fn().mockResolvedValue(null) };
     strategy = new JwtStrategy(
       configService,
       usersService as unknown as UsersService,
+      redisService as unknown as RedisService,
     );
   });
 

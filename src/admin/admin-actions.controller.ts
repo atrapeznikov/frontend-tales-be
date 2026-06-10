@@ -5,7 +5,9 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service.js';
 import { CommentsService } from '../comments/comments.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RedisService } from '../redis/redis.service.js';
 import { Public } from '../common/decorators/public.decorator.js';
+import { escapeHtml } from '../common/utils/index.js';
 
 @Controller('admin/quick-actions')
 export class QuickActionsController {
@@ -15,7 +17,32 @@ export class QuickActionsController {
     private readonly usersService: UsersService,
     private readonly commentsService: CommentsService,
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
   ) {}
+
+  /**
+   * Secret for verifying admin quick-action tokens. Must match the one used to
+   * sign them in EmailService — prefer JWT_ACTION_SECRET, fall back to
+   * JWT_ACCESS_SECRET.
+   */
+  private getActionTokenSecret(): string | undefined {
+    return (
+      this.configService.get<string>('JWT_ACTION_SECRET') ||
+      this.configService.get<string>('JWT_ACCESS_SECRET')
+    );
+  }
+
+  /**
+   * Atomically marks a token's `jti` as used. Returns false if it was already
+   * consumed (replay) or is missing. The marker TTL outlives the token.
+   */
+  private async consumeJti(jti: unknown): Promise<boolean> {
+    if (typeof jti !== 'string' || !jti) return false;
+    const result = await this.redis
+      .getClient()
+      .set(`action:used:${jti}`, '1', 'EX', 24 * 60 * 60, 'NX');
+    return result === 'OK';
+  }
 
   @Get('confirm')
   @Public()
@@ -27,7 +54,7 @@ export class QuickActionsController {
     @Query('commentId') commentId?: string,
     @Query('userId') userId?: string,
   ) {
-    const secret = this.configService.get<string>('JWT_ACCESS_SECRET');
+    const secret = this.getActionTokenSecret();
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
 
     try {
@@ -61,7 +88,7 @@ export class QuickActionsController {
           targetDetailsHtml = `
             <div class="target-box">
               <div class="target-box-title">Комментарий</div>
-              <div class="target-box-content">"${comment.content}"</div>
+              <div class="target-box-content">"${escapeHtml(comment.content)}"</div>
             </div>
           `;
         }
@@ -85,8 +112,8 @@ export class QuickActionsController {
         targetDetailsHtml = `
           <div class="target-box">
             <div class="target-box-title">Пользователь</div>
-            <div class="target-box-name">${user.displayName}</div>
-            <div class="target-box-email">${user.email}</div>
+            <div class="target-box-name">${escapeHtml(user.displayName)}</div>
+            <div class="target-box-email">${escapeHtml(user.email)}</div>
           </div>
         `;
 
@@ -122,11 +149,11 @@ export class QuickActionsController {
     ${targetDetailsHtml}
 
     <form action="/api/admin/quick-actions/execute" method="POST">
-      <input type="hidden" name="action" value="${action}" />
-      <input type="hidden" name="token" value="${token}" />
-      ${articleId ? `<input type="hidden" name="articleId" value="${articleId}" />` : ''}
-      ${commentId ? `<input type="hidden" name="commentId" value="${commentId}" />` : ''}
-      ${userId ? `<input type="hidden" name="userId" value="${userId}" />` : ''}
+      <input type="hidden" name="action" value="${escapeHtml(action)}" />
+      <input type="hidden" name="token" value="${escapeHtml(token)}" />
+      ${articleId ? `<input type="hidden" name="articleId" value="${escapeHtml(articleId)}" />` : ''}
+      ${commentId ? `<input type="hidden" name="commentId" value="${escapeHtml(commentId)}" />` : ''}
+      ${userId ? `<input type="hidden" name="userId" value="${escapeHtml(userId)}" />` : ''}
 
       <div class="btn-group">
         <button type="submit" class="btn btn-submit ${btnClass}">
@@ -160,13 +187,21 @@ export class QuickActionsController {
     @Body('commentId') commentId?: string,
     @Body('userId') userId?: string,
   ) {
-    const secret = this.configService.get<string>('JWT_ACCESS_SECRET');
+    const secret = this.getActionTokenSecret();
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
 
     try {
       const payload = await this.jwtService.verifyAsync(token, { secret });
 
       if (payload.action !== action) {
+        res.setHeader('Content-Type', 'text/html');
+        return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
+      }
+
+      // Single-use enforcement: consume the token's jti so it can't be replayed.
+      // confirm() (a read-only preview) does not consume it — only execute().
+      const consumed = await this.consumeJti(payload.jti);
+      if (!consumed) {
         res.setHeader('Content-Type', 'text/html');
         return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
       }

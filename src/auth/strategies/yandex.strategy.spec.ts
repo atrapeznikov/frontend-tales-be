@@ -1,6 +1,9 @@
 import { ConfigService } from '@nestjs/config';
 import { YandexStrategy } from './yandex.strategy.js';
 import { UsersService } from '../../users/users.service.js';
+import { RedisService } from '../../redis/redis.service.js';
+
+const redisStub = {} as unknown as RedisService;
 
 describe('YandexStrategy', () => {
   const configService = {
@@ -22,6 +25,7 @@ describe('YandexStrategy', () => {
     strategy = new YandexStrategy(
       configService,
       usersService as unknown as UsersService,
+      redisStub,
     );
   });
 
@@ -50,6 +54,7 @@ describe('YandexStrategy', () => {
       const customStrategy = new YandexStrategy(
         customConfig,
         usersService as unknown as UsersService,
+        redisStub,
       );
 
       expect((customStrategy as any)._scope).toEqual([

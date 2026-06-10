@@ -8,6 +8,32 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters';
 import { TransformInterceptor } from './common/interceptors';
 
+/**
+ * Resolves the Express `trust proxy` setting from the TRUST_PROXY env var.
+ * Accepts a number of hops, a boolean, or a comma-separated list of
+ * trusted addresses/subnets. Defaults to 'loopback'.
+ */
+function parseTrustProxy(
+  configService: ConfigService,
+): boolean | number | string | string[] {
+  const raw = configService.get<string>('TRUST_PROXY', 'loopback').trim();
+
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+
+  const asNumber = Number(raw);
+  if (raw !== '' && Number.isInteger(asNumber)) return asNumber;
+
+  if (raw.includes(',')) {
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  return raw || 'loopback';
+}
+
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
@@ -19,9 +45,19 @@ async function bootstrap(): Promise<void> {
   // Cookie parser (for refresh token in httpOnly cookie)
   app.use(cookieParser());
 
-  // Trust first proxy (nginx/reverse proxy) for correct IP resolution
+  // Trust proxy configuration for correct client IP resolution (req.ip).
+  //
+  // SECURITY: a too-permissive setting lets clients spoof X-Forwarded-For and
+  // defeat IP-based login rate limiting. Configure TRUST_PROXY to match your
+  // actual topology rather than blindly trusting the last hop:
+  //   - 'loopback'        (default) trust only proxies on localhost, e.g.
+  //                       nginx running on the same host — XFF from external
+  //                       clients is ignored.
+  //   - a number          trust N hops (only if you control exactly N proxies).
+  //   - a comma list/CIDR  e.g. '10.0.0.0/8,127.0.0.1' for off-host proxies.
+  //   - 'false'           don't trust any proxy (direct exposure).
   const expressApp = app.getHttpAdapter().getInstance();
-  expressApp.set('trust proxy', 1);
+  expressApp.set('trust proxy', parseTrustProxy(configService));
 
   // Global prefix
   app.setGlobalPrefix('api');

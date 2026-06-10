@@ -17,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { ArticlesService } from './articles.service.js';
 import { CreateArticleDto, CreateTagDto } from './dto/create-article.dto.js';
 import { UpdateArticleDto, UpdateTagDto } from './dto/update-article.dto.js';
@@ -131,6 +132,7 @@ export class ArticlesController {
   @Post(':id/reactions')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @ApiOperation({ summary: 'Toggle a reaction on an article' })
   toggleReaction(
     @Param('id') id: string,
@@ -143,6 +145,7 @@ export class ArticlesController {
   @Post(':id/save')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @ApiOperation({ summary: 'Toggle save article to user profile' })
   toggleSave(
     @Param('id') id: string,
@@ -153,6 +156,8 @@ export class ArticlesController {
 
   @Post(':slug/view')
   @Public()
+  // Public + unauthenticated: cap per-IP to limit view-count inflation.
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @ApiOperation({ summary: 'Increment view count for an article' })
   incrementViewCount(@Param('slug') slug: string, @Req() req: any) {
     const ip: string = req.ip ?? req.socket?.remoteAddress ?? 'unknown';

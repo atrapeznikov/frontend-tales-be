@@ -26,8 +26,32 @@ describe('CaptchaService', () => {
   });
 
   describe('verify', () => {
-    it('should return true when YANDEX_CAPTCHA_SECRET is not configured (dev bypass)', async () => {
-      mockConfigService.get.mockReturnValue(undefined);
+    it('should return true when secret is not configured in development (dev bypass)', async () => {
+      mockConfigService.get.mockImplementation((key: string) =>
+        key === 'NODE_ENV' ? 'development' : undefined,
+      );
+
+      const result = await service.verify('any-token', '1.2.3.4');
+      expect(result).toBe(true);
+    });
+
+    it('should fail closed when secret is missing outside development', async () => {
+      // e.g. staging/test/production — a missing secret must not silently
+      // disable captcha.
+      mockConfigService.get.mockImplementation((key: string) =>
+        key === 'NODE_ENV' ? 'test' : undefined,
+      );
+
+      const result = await service.verify('any-token', '1.2.3.4');
+      expect(result).toBe(false);
+    });
+
+    it('should return true when captcha is explicitly disabled', async () => {
+      mockConfigService.get.mockImplementation((key: string) => {
+        if (key === 'NODE_ENV') return 'production';
+        if (key === 'CAPTCHA_ENABLED') return false;
+        return undefined;
+      });
 
       const result = await service.verify('any-token', '1.2.3.4');
       expect(result).toBe(true);

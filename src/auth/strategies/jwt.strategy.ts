@@ -3,13 +3,15 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../users';
-import { JwtPayload } from '../auth.service';
+import { RedisService } from '../../redis';
+import { JwtPayload, tokenRevokeKey } from '../auth.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     configService: ConfigService,
     private readonly usersService: UsersService,
+    private readonly redisService: RedisService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -25,6 +27,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
     if (user.isBlocked) {
       throw new UnauthorizedException('User is blocked');
+    }
+
+    // Enforce hard logout: reject access tokens issued before the user's
+    // revocation cutoff (set on logout).
+    const revokeBefore = await this.redisService.get(tokenRevokeKey(payload.sub));
+    if (revokeBefore && payload.iat && payload.iat < Number(revokeBefore)) {
+      throw new UnauthorizedException('Token has been revoked');
     }
     return {
       id: user.id,

@@ -3,6 +3,8 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-oauth2';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../users/users.service.js';
+import { RedisService } from '../../redis';
+import { OAuthStateStore } from './oauth-state.store.js';
 
 // Yandex OAuth2 uses a standard OAuth2 flow
 @Injectable()
@@ -10,8 +12,12 @@ export class YandexStrategy extends PassportStrategy(Strategy, 'yandex') {
   constructor(
     configService: ConfigService,
     private readonly usersService: UsersService,
+    redisService: RedisService,
   ) {
-    super({
+    // `store` enables a Redis + cookie-bound state store for OAuth CSRF
+    // protection. It isn't part of the upstream option typings, so the options
+    // are cast — passport-oauth2 supports a custom store object at runtime.
+    const options = {
       clientID:
         configService.get<string>('YANDEX_CLIENT_ID') || 'dummy-client-id',
       clientSecret:
@@ -28,9 +34,10 @@ export class YandexStrategy extends PassportStrategy(Strategy, 'yandex') {
           ? scopes.split(',').map((s) => s.trim())
           : ['login:email', 'login:info', 'login:avatar'];
       })(),
-      // NOTE: state parameter requires express-session. The single-use OAuth
-      // authorization code pattern (60s TTL) partially mitigates OAuth CSRF.
-    });
+      state: true,
+      store: new OAuthStateStore(redisService),
+    };
+    super(options as unknown as ConstructorParameters<typeof Strategy>[0]);
   }
 
   userProfile(

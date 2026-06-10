@@ -30,16 +30,28 @@ export class CaptchaService {
   async verify(token: string | undefined, ip: string): Promise<boolean> {
     const secret = this.configService.get<string>('YANDEX_CAPTCHA_SECRET');
 
+    const enabled = this.configService.get<boolean>('CAPTCHA_ENABLED');
+
     if (!secret) {
       const nodeEnv = this.configService.get<string>('NODE_ENV');
-      if (nodeEnv === 'production') {
-        this.logger.error(
-          'YANDEX_CAPTCHA_SECRET is not configured in production — blocking request',
-        );
-        return false;
+
+      // Explicitly disabled: skip verification regardless of environment.
+      if (enabled === false) {
+        return true;
       }
-      // Dev bypass — no secret configured.
-      return true;
+
+      // Otherwise only bypass in local development. Every other environment
+      // (production, staging, test, etc.) fails closed so a missing secret
+      // cannot silently disable captcha. Set CAPTCHA_ENABLED=false to opt out
+      // deliberately.
+      if (nodeEnv === 'development' && enabled !== true) {
+        return true;
+      }
+
+      this.logger.error(
+        `YANDEX_CAPTCHA_SECRET is not configured (NODE_ENV=${nodeEnv}) — blocking request`,
+      );
+      return false;
     }
 
     if (!token || typeof token !== 'string') {

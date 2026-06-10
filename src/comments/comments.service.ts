@@ -48,7 +48,8 @@ export class CommentsService {
             displayName: true,
             nickname: true,
             avatarUrl: true,
-            email: true,
+            // email intentionally omitted — this projection is returned on the
+            // public GET comments endpoint and must not leak user PII.
             role: true,
           },
         },
@@ -85,7 +86,8 @@ export class CommentsService {
             displayName: true,
             nickname: true,
             avatarUrl: true,
-            email: true,
+            // email intentionally omitted — this projection is returned on the
+            // public GET comments endpoint and must not leak user PII.
             role: true,
           },
         },
@@ -169,6 +171,10 @@ export class CommentsService {
             displayName: true,
             nickname: true,
             avatarUrl: true,
+            // email is included here only because this response is returned to
+            // the comment's own author and is consumed by the admin
+            // new-comment notification (sendAdminNotifications). It is NOT in
+            // the public getComments projection above.
             email: true,
             role: true,
           },
@@ -235,6 +241,10 @@ export class CommentsService {
             displayName: true,
             nickname: true,
             avatarUrl: true,
+            // email is included here only because this response is returned to
+            // the comment's own author and is consumed by the admin
+            // new-comment notification (sendAdminNotifications). It is NOT in
+            // the public getComments projection above.
             email: true,
             role: true,
           },
