@@ -19,6 +19,19 @@ describe('AuthService', () => {
     findByEmail: jest.fn(),
     validatePassword: jest.fn(),
     findByIdOrThrow: jest.fn(),
+    getRandomDefaultAvatar: jest.fn().mockReturnValue('https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/default1.svg'),
+    updateAvatarUrl: jest.fn().mockImplementation((userId, url) => Promise.resolve({
+      id: userId,
+      email: 'a@b.com',
+      role: 'USER',
+      displayName: 'Alex',
+      nickname: 'alex',
+      passwordHash: 'hashed',
+      avatarUrl: url,
+      isBlocked: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })),
   };
 
   const mockJwtService = {
@@ -55,6 +68,7 @@ describe('AuthService', () => {
     nickname: 'alex',
     passwordHash: 'hashed',
     avatarUrl: null,
+    isBlocked: false,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

@@ -1,4 +1,17 @@
-import { Controller, Patch, Param, ParseUUIDPipe, Get } from '@nestjs/common';
+import {
+  Controller,
+  Patch,
+  Param,
+  ParseUUIDPipe,
+  Get,
+  Post,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -16,6 +29,35 @@ export class UsersController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getMyComments(@CurrentUser('id') userId: string) {
     return this.usersService.getUserComments(userId);
+  }
+
+  @Post('me/avatar')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upload avatar for the current user' })
+  @ApiResponse({ status: 200, description: 'Avatar updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid file size or format' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async uploadAvatar(
+    @CurrentUser('id') userId: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp|gif|svg)' }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    const user = await this.usersService.updateAvatar(userId, file);
+    return {
+      message: 'Avatar updated successfully',
+      data: {
+        id: user.id,
+        avatarUrl: user.avatarUrl,
+      },
+    };
   }
 
   @Patch(':userId/block')
