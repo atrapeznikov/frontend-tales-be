@@ -1,6 +1,9 @@
 import { ConfigService } from '@nestjs/config';
 import { GithubStrategy } from './github.strategy.js';
 import { UsersService } from '../../users/users.service.js';
+import { RedisService } from '../../redis/redis.service.js';
+
+const redisStub = {} as unknown as RedisService;
 
 describe('GithubStrategy', () => {
   const configService = {
@@ -22,6 +25,7 @@ describe('GithubStrategy', () => {
     strategy = new GithubStrategy(
       configService,
       usersService as unknown as UsersService,
+      redisStub,
     );
   });
 

@@ -19,7 +19,17 @@ export interface JwtPayload {
   sub: string;
   email: string;
   role: string;
+  // Standard JWT claim (seconds since epoch), populated by the signer.
+  iat?: number;
 }
+
+/**
+ * Redis key holding the cutoff time (epoch seconds). Any access token whose
+ * `iat` is older than this value is treated as revoked. Set on logout so an
+ * already-issued access token can't be used after the user logs out.
+ */
+export const tokenRevokeKey = (userId: string): string =>
+  `auth:revoke-before:${userId}`;
 
 interface UserEntity {
   id: string;
@@ -120,7 +130,41 @@ export class AuthService {
 
   async logout(userId: string): Promise<void> {
     await this.redisService.del(`user:session:${userId}`);
+
+    // Revoke any access tokens already issued to this user. We store the
+    // current time; JwtStrategy rejects tokens with an older `iat`. The key
+    // only needs to outlive the access-token lifetime, after which `exp`
+    // enforcement takes over.
+    const accessTtl = this.parseDurationSeconds(
+      this.configService.get<string>('JWT_ACCESS_EXPIRES_IN'),
+      900,
+    );
+    await this.redisService.set(
+      tokenRevokeKey(userId),
+      String(Math.floor(Date.now() / 1000)),
+      accessTtl,
+    );
+
     this.logger.log(`User ${userId} logged out`);
+  }
+
+  /**
+   * Parses a JWT-style duration ('15m', '7d', '3600', '2h') into seconds.
+   * Falls back to `fallback` for unrecognised/empty input.
+   */
+  private parseDurationSeconds(value: string | undefined, fallback: number): number {
+    if (!value) return fallback;
+    const match = /^(\d+)\s*([smhd])?$/.exec(value.trim());
+    if (!match) return fallback;
+    const amount = Number(match[1]);
+    const unit = match[2] ?? 's';
+    const multipliers: Record<string, number> = {
+      s: 1,
+      m: 60,
+      h: 3600,
+      d: 86400,
+    };
+    return amount * multipliers[unit];
   }
 
   async setupNickname(userId: string, nickname: string): Promise<TokensDto> {

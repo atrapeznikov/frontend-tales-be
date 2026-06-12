@@ -9,6 +9,7 @@ import {
 } from './interfaces/mail-provider.interface.js';
 import { getWelcomeEmailTemplate } from './templates/welcome.template.js';
 import { getNewCommentTemplate } from './templates/new-comment.template.js';
+import { v4 as uuid } from 'uuid';
 
 const possiblePaths = [
   path.join(__dirname, 'templates', 'avatar.png'),
@@ -27,6 +28,25 @@ for (const p of possiblePaths) {
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
+  private warnedAboutActionSecret = false;
+
+  /**
+   * Secret used to sign admin quick-action (email link) tokens. Prefers the
+   * dedicated JWT_ACTION_SECRET; falls back to JWT_ACCESS_SECRET with a warning
+   * so existing deployments keep working until the dedicated secret is set.
+   */
+  private getActionTokenSecret(): string {
+    const dedicated = this.configService.get<string>('JWT_ACTION_SECRET');
+    if (dedicated) return dedicated;
+    if (!this.warnedAboutActionSecret) {
+      this.logger.warn(
+        'JWT_ACTION_SECRET is not set — falling back to JWT_ACCESS_SECRET for ' +
+          'admin action links. Set a dedicated secret in production.',
+      );
+      this.warnedAboutActionSecret = true;
+    }
+    return this.configService.get<string>('JWT_ACCESS_SECRET')!;
+  }
 
   constructor(
     @Inject(MailProvider) private readonly mailProvider: MailProvider,
@@ -59,17 +79,20 @@ export class EmailService {
       'http://localhost:3000',
     );
 
-    // Generate short-lived quick action tokens
-    const secret = this.configService.get<string>('JWT_ACCESS_SECRET');
+    // Generate short-lived, single-use quick action tokens. The `jti` is
+    // consumed in Redis the first time the action is executed (see
+    // QuickActionsController), preventing replay even within the token's life.
+    const secret = this.getActionTokenSecret();
     const deleteToken = await this.jwtService.signAsync(
       {
         action: 'delete-comment',
         articleId: data.articleId,
         commentId: data.commentId,
+        jti: uuid(),
       },
       {
         secret,
-        expiresIn: '24h',
+        expiresIn: '2h',
       },
     );
 
@@ -77,10 +100,11 @@ export class EmailService {
       {
         action: 'block-user',
         userId: data.authorId,
+        jti: uuid(),
       },
       {
         secret,
-        expiresIn: '24h',
+        expiresIn: '2h',
       },
     );
 

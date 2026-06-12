@@ -50,9 +50,21 @@ import * as Joi from 'joi';
         // Backend
         BACKEND_URL: Joi.string().default('http://localhost:3000'),
 
+        // Reverse-proxy trust (Express `trust proxy`). See main.ts. Use a value
+        // that matches your real topology so X-Forwarded-For cannot be spoofed.
+        TRUST_PROXY: Joi.string().default('loopback'),
+
+        // Dedicated secret for signing admin quick-action (email link) tokens.
+        // Keep separate from JWT_ACCESS_SECRET. If unset, the code falls back to
+        // JWT_ACCESS_SECRET and logs a warning — set this in production.
+        JWT_ACTION_SECRET: Joi.string().optional().allow(''),
+
         // Yandex SmartCaptcha (server-side verification)
         // Leave empty in local dev to skip verification.
         YANDEX_CAPTCHA_SECRET: Joi.string().optional().allow(''),
+        // Explicit captcha enablement. When unset, captcha is required in every
+        // environment except 'development'. Set to 'false' to force-disable.
+        CAPTCHA_ENABLED: Joi.boolean().optional(),
 
         // Email Configuration
         EMAIL_PROVIDER: Joi.string()

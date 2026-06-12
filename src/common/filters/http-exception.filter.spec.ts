@@ -4,6 +4,7 @@ import {
   HttpStatus,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { HttpExceptionFilter } from './http-exception.filter.js';
 
 describe('HttpExceptionFilter', () => {
@@ -87,6 +88,64 @@ describe('HttpExceptionFilter', () => {
         message: 'Internal server error',
       }),
     );
+  });
+
+  it('should map Prisma P2025 (not found) to 404 without leaking details', () => {
+    const { host, status, json } = buildHost();
+    jest
+      .spyOn((filter as any).logger, 'warn')
+      .mockImplementation(() => undefined);
+
+    const err = new Prisma.PrismaClientKnownRequestError(
+      'No record found for a delete on table "Tag"',
+      { code: 'P2025', clientVersion: '5.22.0' },
+    );
+    filter.catch(err, host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HttpStatus.NOT_FOUND,
+        message: 'Resource not found',
+      }),
+    );
+    // The raw Prisma message must not reach the client.
+    expect(json).not.toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('Tag') }),
+    );
+  });
+
+  it('should map Prisma P2002 (unique violation) to 409', () => {
+    const { host, status, json } = buildHost();
+    jest
+      .spyOn((filter as any).logger, 'warn')
+      .mockImplementation(() => undefined);
+
+    const err = new Prisma.PrismaClientKnownRequestError('Unique failed', {
+      code: 'P2002',
+      clientVersion: '5.22.0',
+    });
+    filter.catch(err, host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: HttpStatus.CONFLICT }),
+    );
+  });
+
+  it('should default unknown Prisma codes to 500', () => {
+    const { host, status } = buildHost();
+    jest
+      .spyOn((filter as any).logger, 'warn')
+      .mockImplementation(() => undefined);
+
+    const err = new Prisma.PrismaClientKnownRequestError('Some other error', {
+      code: 'P2099',
+      clientVersion: '5.22.0',
+    });
+    filter.catch(err, host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
   });
 
   it('should default to 500 + Internal server error for non-Error values', () => {

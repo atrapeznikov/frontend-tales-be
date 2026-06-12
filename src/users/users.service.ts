@@ -174,26 +174,27 @@ export class UsersService {
     // Ensure user exists
     const user = await this.findByIdOrThrow(userId);
 
-    // Extract file extension
-    let extension = 'png';
-    if (file.originalname && file.originalname.includes('.')) {
-      extension = file.originalname.split('.').pop() || 'png';
-    } else if (file.mimetype) {
-      const parts = file.mimetype.split('/');
-      if (parts.length === 2) {
-        extension = parts[1];
-        if (extension === 'svg+xml') {
-          extension = 'svg';
-        }
-      }
+    // Derive the extension and content type from the *validated* mimetype, not
+    // the client-supplied filename. The controller's FileTypeValidator already
+    // verified the magic number matches one of these image types, so this map
+    // also defends against path/extension injection via originalname.
+    const extByMime: Record<string, string> = {
+      'image/png': 'png',
+      'image/jpeg': 'jpg',
+      'image/webp': 'webp',
+      'image/gif': 'gif',
+    };
+    const extension = extByMime[file.mimetype];
+    if (!extension) {
+      throw new BadRequestException('Unsupported image type');
     }
 
-    // Generate unique S3 key
+    // Generate unique S3 key (server-controlled — no user input in the path)
     const filename = `${userId}-${Date.now()}.${extension}`;
     const s3Key = `avatars/${filename}`;
 
-    // Upload to S3
-    await this.s3Service.uploadFile(file, s3Key);
+    // Upload to S3 with the validated content type (never echo client mimetype)
+    await this.s3Service.uploadFile(file, s3Key, file.mimetype);
 
     // Construct the database CDN-prefixed avatar URL
     const dbPrefix =

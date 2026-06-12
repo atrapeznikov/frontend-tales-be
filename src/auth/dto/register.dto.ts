@@ -7,6 +7,7 @@ import {
   Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsSafeText } from '../../common/validators/is-safe-text.decorator.js';
 
 export class RegisterDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -27,6 +28,7 @@ export class RegisterDto {
   @IsString()
   @MinLength(2)
   @MaxLength(100)
+  @IsSafeText()
   displayName!: string;
 
   @ApiProperty({ example: 'johndoe' })

@@ -26,12 +26,20 @@ export class S3Service {
     });
   }
 
-  async uploadFile(file: Express.Multer.File, key: string): Promise<string> {
+  async uploadFile(
+    file: Express.Multer.File,
+    key: string,
+    contentType?: string,
+  ): Promise<string> {
+    // Prefer a caller-validated content type over the raw client mimetype so a
+    // forged mimetype can't influence how the object is served (sniffing/XSS).
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,
       Body: file.buffer,
-      ContentType: file.mimetype,
+      ContentType: contentType ?? file.mimetype,
+      // Force browsers to render rather than treat as an active document.
+      ContentDisposition: 'inline',
       ACL: 'public-read',
     });
 

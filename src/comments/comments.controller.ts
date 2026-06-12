@@ -16,6 +16,7 @@ import {
   ApiBearerAuth,
   ApiParam,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { CommentsService } from './comments.service.js';
 import {
   PaginationQueryDto,
@@ -43,6 +44,8 @@ export class CommentsController {
 
   @Post()
   @ApiBearerAuth()
+  // Limit content creation to curb spam/flooding beyond the global limiter.
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Create a top-level comment' })
   @ApiParam({ name: 'articleId', description: 'Article UUID' })
   createComment(
@@ -55,6 +58,7 @@ export class CommentsController {
 
   @Post(':commentId/replies')
   @ApiBearerAuth()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Create a reply to a comment or another reply' })
   @ApiParam({ name: 'articleId', description: 'Article UUID' })
   @ApiParam({
@@ -73,6 +77,7 @@ export class CommentsController {
   @Post(':commentId/reactions')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @ApiOperation({ summary: 'Toggle a reaction on a comment or reply' })
   @ApiParam({ name: 'articleId', description: 'Article UUID' })
   @ApiParam({

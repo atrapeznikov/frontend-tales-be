@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service.js';
 import { CommentsService } from '../comments/comments.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RedisService } from '../redis/redis.service.js';
 import { Response } from 'express';
 import { HttpStatus } from '@nestjs/common';
 
@@ -40,6 +41,14 @@ describe('QuickActionsController', () => {
     },
   };
 
+  // getClient().set(..., 'NX') returns 'OK' when the jti is fresh (not yet used).
+  const mockRedisClient = {
+    set: jest.fn().mockResolvedValue('OK'),
+  };
+  const mockRedisService = {
+    getClient: jest.fn(() => mockRedisClient),
+  };
+
   const mockResponse = {
     status: jest.fn().mockReturnThis(),
     send: jest.fn().mockReturnThis(),
@@ -55,6 +64,7 @@ describe('QuickActionsController', () => {
         { provide: UsersService, useValue: mockUsersService },
         { provide: CommentsService, useValue: mockCommentsService },
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: RedisService, useValue: mockRedisService },
       ],
     }).compile();
 
@@ -84,18 +94,55 @@ describe('QuickActionsController', () => {
       expect(mockResponse.send).toHaveBeenCalledWith(expect.stringContaining('Блокировка пользователя'));
       expect(mockResponse.send).toHaveBeenCalledWith(expect.stringContaining('Alex'));
     });
+
+    it('should HTML-escape a malicious displayName to prevent stored XSS', async () => {
+      const payload = { action: 'block-user', userId: 'u1' };
+      mockJwtService.verifyAsync.mockResolvedValue(payload);
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'u1',
+        displayName: '<img src=x onerror=alert(1)>',
+        email: '"><script>alert(2)</script>',
+      });
+
+      await controller.confirm(mockResponse, 'block-user', 'token', undefined, undefined, 'u1');
+
+      const html = (mockResponse.send as jest.Mock).mock.calls[0][0] as string;
+      expect(html).not.toContain('<img src=x onerror=alert(1)>');
+      expect(html).not.toContain('<script>alert(2)</script>');
+      expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+      expect(html).toContain('&lt;script&gt;alert(2)&lt;/script&gt;');
+    });
   });
 
   describe('execute', () => {
     it('should successfully execute block-user and return success HTML', async () => {
-      const payload = { action: 'block-user', userId: 'u1' };
+      const payload = { action: 'block-user', userId: 'u1', jti: 'jti-1' };
       mockJwtService.verifyAsync.mockResolvedValue(payload);
 
       await controller.execute(mockResponse, 'block-user', 'token', undefined, undefined, 'u1');
 
+      expect(mockRedisClient.set).toHaveBeenCalledWith(
+        'action:used:jti-1',
+        '1',
+        'EX',
+        24 * 60 * 60,
+        'NX',
+      );
       expect(mockUsersService.blockUser).toHaveBeenCalledWith('u1');
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.OK);
       expect(mockResponse.send).toHaveBeenCalledWith(expect.stringContaining('Пользователь был заблокирован'));
+    });
+
+    it('should reject a replayed token whose jti was already consumed', async () => {
+      const payload = { action: 'block-user', userId: 'u1', jti: 'jti-used' };
+      mockJwtService.verifyAsync.mockResolvedValue(payload);
+      // Redis SET NX returns null when the key already exists (replay).
+      mockRedisClient.set.mockResolvedValueOnce(null);
+
+      await controller.execute(mockResponse, 'block-user', 'token', undefined, undefined, 'u1');
+
+      expect(mockUsersService.blockUser).not.toHaveBeenCalled();
+      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
   });
 });

@@ -1,3 +1,5 @@
+import { escapeHtml } from '../../common/utils/index.js';
+
 export interface NewCommentEmailData {
   articleTitle: string;
   articleLink: string;
@@ -24,6 +26,18 @@ export function getNewCommentTemplate(data: NewCommentEmailData): {
     deleteLink,
     blockLink,
   } = data;
+
+  // HTML-escaped variants for safe interpolation into the html body. The
+  // commentContent / authorName are user-controlled and would otherwise allow
+  // stored XSS in the recipient's mail client. (The plain-text body below does
+  // not need escaping.)
+  const esc = {
+    articleTitle: escapeHtml(articleTitle),
+    authorName: escapeHtml(authorName),
+    authorEmail: escapeHtml(authorEmail),
+    authorId: escapeHtml(authorId),
+    commentContent: escapeHtml(commentContent),
+  };
 
   const subject = `[Frontend Tales] Новый комментарий к статье: "${articleTitle}"`;
 
@@ -202,25 +216,25 @@ export function getNewCommentTemplate(data: NewCommentEmailData): {
         <td class="body-content">
           <div class="section-title">Статья</div>
           <p class="article-title">
-            <a href="${articleLink}" class="article-link" target="_blank">${articleTitle}</a>
+            <a href="${articleLink}" class="article-link" target="_blank">${esc.articleTitle}</a>
           </p>
 
           <div class="section-title">Автор комментария</div>
           <div class="meta-box">
             <div class="meta-row">
-              <span class="meta-label">Имя:</span> ${authorName}
+              <span class="meta-label">Имя:</span> ${esc.authorName}
             </div>
             <div class="meta-row">
-              <span class="meta-label">Email:</span> ${authorEmail}
+              <span class="meta-label">Email:</span> ${esc.authorEmail}
             </div>
             <div class="meta-row">
-              <span class="meta-label">User ID:</span> <code style="font-size: 13px; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${authorId}</code>
+              <span class="meta-label">User ID:</span> <code style="font-size: 13px; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${esc.authorId}</code>
             </div>
           </div>
 
           <div class="section-title">Содержимое</div>
           <div class="comment-card">
-            "${commentContent}"
+            "${esc.commentContent}"
           </div>
 
           <div class="actions-title">Быстрые действия (только для администраторов)</div>

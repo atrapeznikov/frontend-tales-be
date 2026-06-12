@@ -3,14 +3,20 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, Profile } from 'passport-github2';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../users/users.service.js';
+import { RedisService } from '../../redis';
+import { OAuthStateStore } from './oauth-state.store.js';
 
 @Injectable()
 export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
   constructor(
     configService: ConfigService,
     private readonly usersService: UsersService,
+    redisService: RedisService,
   ) {
-    super({
+    // `store` enables a Redis + cookie-bound state store for OAuth CSRF
+    // protection. It isn't part of the upstream option typings, so the options
+    // are cast — passport-oauth2 supports a custom store object at runtime.
+    const options = {
       clientID:
         configService.get<string>('GITHUB_CLIENT_ID') || 'dummy-client-id',
       clientSecret:
@@ -20,9 +26,10 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
         configService.get<string>('GITHUB_CALLBACK_URL') ||
         'http://localhost:3000/api/auth/github/callback',
       scope: ['user:email'],
-      // NOTE: state parameter requires express-session. The single-use OAuth
-      // authorization code pattern (60s TTL) partially mitigates OAuth CSRF.
-    });
+      state: true,
+      store: new OAuthStateStore(redisService),
+    };
+    super(options as unknown as ConstructorParameters<typeof Strategy>[0]);
   }
 
   async validate(

@@ -44,7 +44,10 @@ export class UsersController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
-          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp|gif|svg)' }),
+          // SVG intentionally excluded: it is XML and can carry executable
+          // script, which would be stored XSS once served from our asset host.
+          // FileTypeValidator inspects magic numbers, not the client mimetype.
+          new FileTypeValidator({ fileType: 'image/(png|jpeg|webp|gif)' }),
         ],
       }),
     )
