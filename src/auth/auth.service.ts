@@ -13,6 +13,7 @@ import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { TokensDto } from './dto/tokens.dto.js';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { v4 as uuid } from 'uuid';
 
 export interface JwtPayload {
@@ -30,6 +31,13 @@ export interface JwtPayload {
  */
 export const tokenRevokeKey = (userId: string): string =>
   `auth:revoke-before:${userId}`;
+
+/** Redis key holding the userId for a single-use password reset token. */
+export const passwordResetKey = (token: string): string =>
+  `auth:password-reset:${token}`;
+
+/** Password reset tokens are valid for 30 minutes. */
+const PASSWORD_RESET_TTL_SECONDS = 30 * 60;
 
 interface UserEntity {
   id: string;
@@ -129,12 +137,19 @@ export class AuthService {
   }
 
   async logout(userId: string): Promise<void> {
+    await this.invalidateUserSessions(userId);
+    this.logger.log(`User ${userId} logged out`);
+  }
+
+  /**
+   * Drops the active refresh-token session and revokes any access tokens
+   * already issued to the user. We store the current time under the revoke
+   * key; JwtStrategy rejects tokens with an older `iat`. The key only needs to
+   * outlive the access-token lifetime, after which `exp` enforcement takes over.
+   */
+  private async invalidateUserSessions(userId: string): Promise<void> {
     await this.redisService.del(`user:session:${userId}`);
 
-    // Revoke any access tokens already issued to this user. We store the
-    // current time; JwtStrategy rejects tokens with an older `iat`. The key
-    // only needs to outlive the access-token lifetime, after which `exp`
-    // enforcement takes over.
     const accessTtl = this.parseDurationSeconds(
       this.configService.get<string>('JWT_ACCESS_EXPIRES_IN'),
       900,
@@ -144,8 +159,65 @@ export class AuthService {
       String(Math.floor(Date.now() / 1000)),
       accessTtl,
     );
+  }
 
-    this.logger.log(`User ${userId} logged out`);
+  /**
+   * Initiates a password reset. Generates a single-use token, stores it in
+   * Redis keyed to the user, and emails the reset link. To avoid leaking which
+   * emails are registered, this resolves successfully whether or not the email
+   * matches an account, and never throws on a missing/blocked user.
+   */
+  async forgotPassword(email: string, lang?: 'en' | 'ru'): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+
+    // Silently no-op for unknown or blocked accounts (no user enumeration).
+    if (!user || user.isBlocked) {
+      return;
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await this.redisService.set(
+      passwordResetKey(token),
+      user.id,
+      PASSWORD_RESET_TTL_SECONDS,
+    );
+
+    this.emailService
+      .sendPasswordResetEmail(user.email, user.displayName, token, {
+        expiresIn: lang === 'ru' ? '30 минут' : '30 minutes',
+        lang,
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(
+          `Failed to send password reset email to ${user.email}: ${msg}`,
+        );
+      });
+  }
+
+  /**
+   * Completes a password reset. Validates the single-use token, updates the
+   * password, consumes the token, and invalidates all existing sessions so a
+   * compromised session can't outlive the reset.
+   */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const userId = await this.redisService.get(passwordResetKey(token));
+    if (!userId) {
+      throw new UnauthorizedException('Invalid or expired reset token');
+    }
+
+    // Consume the token immediately (single-use) to prevent replay.
+    await this.redisService.del(passwordResetKey(token));
+
+    const user = await this.usersService.findById(userId);
+    if (!user || user.isBlocked) {
+      throw new UnauthorizedException('Invalid or expired reset token');
+    }
+
+    await this.usersService.updatePassword(userId, newPassword);
+    await this.invalidateUserSessions(userId);
+
+    this.logger.log(`Password reset completed for user ${userId}`);
   }
 
   /**

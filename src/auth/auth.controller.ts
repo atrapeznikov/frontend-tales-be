@@ -25,6 +25,8 @@ import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { AccessTokenDto } from './dto/tokens.dto.js';
 import { SetupNicknameDto } from './dto/setup-nickname.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { Public, CurrentUser } from '../common/decorators/index.js';
 import {
   LoginRateLimitInterceptor,
@@ -110,6 +112,45 @@ export class AuthController {
     );
     this.setRefreshTokenCookie(res, tokens.refreshToken);
     return { accessToken: tokens.accessToken };
+  }
+
+  @Public()
+  @UseInterceptors(CaptchaInterceptor)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request a password reset link' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Always returns success — if the email is registered, a reset link is sent.',
+  })
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+    @Req() req: express.Request,
+  ): Promise<{ message: string }> {
+    const lang =
+      dto.lang ||
+      (req.headers['accept-language']?.startsWith('ru') ? 'ru' : 'en');
+    await this.authService.forgotPassword(dto.email, lang);
+    return {
+      message:
+        'If an account with that email exists, a password reset link has been sent.',
+    };
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using a reset token' })
+  @ApiResponse({ status: 200, description: 'Password updated successfully' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired reset token' })
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    await this.authService.resetPassword(dto.token, dto.password);
+    return { message: 'Password has been reset successfully.' };
   }
 
   @Post('logout')

@@ -17,6 +17,8 @@ describe('AuthController', () => {
     createOAuthCode: jest.fn(),
     exchangeOAuthCode: jest.fn(),
     setupNickname: jest.fn(),
+    forgotPassword: jest.fn(),
+    resetPassword: jest.fn(),
   };
 
   const mockConfigService = {
@@ -171,6 +173,73 @@ describe('AuthController', () => {
       expect(mockAuthService.logout).toHaveBeenCalledWith('u1');
       expect(res.clearCookie).toHaveBeenCalledWith('refresh_token');
       expect(result).toEqual({ message: 'Logged out successfully' });
+    });
+  });
+
+  describe('forgotPassword', () => {
+    it('should call service with email and resolved lang, returning a generic message', async () => {
+      mockAuthService.forgotPassword.mockResolvedValue(undefined);
+      const req = { headers: { 'accept-language': 'ru-RU' } };
+
+      const result = await controller.forgotPassword(
+        { email: 'a@b.com' },
+        req as any,
+      );
+
+      expect(mockAuthService.forgotPassword).toHaveBeenCalledWith(
+        'a@b.com',
+        'ru',
+      );
+      expect(result).toEqual({
+        message:
+          'If an account with that email exists, a password reset link has been sent.',
+      });
+    });
+
+    it('should prefer the explicit lang from the body', async () => {
+      mockAuthService.forgotPassword.mockResolvedValue(undefined);
+      const req = { headers: { 'accept-language': 'ru-RU' } };
+
+      await controller.forgotPassword(
+        { email: 'a@b.com', lang: 'en' },
+        req as any,
+      );
+
+      expect(mockAuthService.forgotPassword).toHaveBeenCalledWith(
+        'a@b.com',
+        'en',
+      );
+    });
+
+    it('should default to en when no lang is provided', async () => {
+      mockAuthService.forgotPassword.mockResolvedValue(undefined);
+      const req = { headers: {} };
+
+      await controller.forgotPassword({ email: 'a@b.com' }, req as any);
+
+      expect(mockAuthService.forgotPassword).toHaveBeenCalledWith(
+        'a@b.com',
+        'en',
+      );
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('should call service with token and password and return a success message', async () => {
+      mockAuthService.resetPassword.mockResolvedValue(undefined);
+
+      const result = await controller.resetPassword({
+        token: 'tok',
+        password: 'NewPw1!',
+      });
+
+      expect(mockAuthService.resetPassword).toHaveBeenCalledWith(
+        'tok',
+        'NewPw1!',
+      );
+      expect(result).toEqual({
+        message: 'Password has been reset successfully.',
+      });
     });
   });
 

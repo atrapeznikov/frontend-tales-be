@@ -250,6 +250,14 @@ export class UsersService {
     });
   }
 
+  async updatePassword(userId: string, newPassword: string) {
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+  }
+
   async validatePassword(
     user: { passwordHash: string | null },
     password: string,
