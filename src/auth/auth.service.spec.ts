@@ -7,9 +7,14 @@ import { UsersService } from '../users/users.service.js';
 import { RedisService } from '../redis/redis.service.js';
 import { EmailService } from '../email/index.js';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 jest.mock('bcrypt');
 jest.mock('uuid', () => ({ v4: jest.fn(() => 'fixed-uuid') }));
+jest.mock('crypto', () => ({
+  ...jest.requireActual('crypto'),
+  randomBytes: jest.fn(() => Buffer.from('reset-token-bytes')),
+}));
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -17,7 +22,9 @@ describe('AuthService', () => {
   const mockUsersService = {
     create: jest.fn(),
     findByEmail: jest.fn(),
+    findById: jest.fn(),
     validatePassword: jest.fn(),
+    updatePassword: jest.fn(),
     findByIdOrThrow: jest.fn(),
     getRandomDefaultAvatar: jest.fn().mockReturnValue('https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/default1.svg'),
     updateAvatarUrl: jest.fn().mockImplementation((userId, url) => Promise.resolve({
@@ -58,6 +65,7 @@ describe('AuthService', () => {
 
   const mockEmailService = {
     sendWelcomeEmail: jest.fn().mockResolvedValue(undefined),
+    sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
   };
 
   const userEntity = {
@@ -91,6 +99,9 @@ describe('AuthService', () => {
       .mockResolvedValueOnce('access-token')
       .mockResolvedValueOnce('refresh-token');
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-refresh');
+    (crypto.randomBytes as jest.Mock).mockReturnValue(
+      Buffer.from('reset-token-bytes'),
+    );
   });
 
   afterEach(() => {
@@ -200,6 +211,102 @@ describe('AuthService', () => {
     it('should delete the user session from redis', async () => {
       await service.logout('u1');
       expect(mockRedisService.del).toHaveBeenCalledWith('user:session:u1');
+    });
+  });
+
+  describe('forgotPassword', () => {
+    const resetToken = Buffer.from('reset-token-bytes').toString('hex');
+
+    it('should store a reset token and send the email for a known user', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(userEntity);
+
+      await service.forgotPassword('a@b.com', 'en');
+
+      expect(mockRedisService.set).toHaveBeenCalledWith(
+        `auth:password-reset:${resetToken}`,
+        userEntity.id,
+        30 * 60,
+      );
+      expect(mockEmailService.sendPasswordResetEmail).toHaveBeenCalledWith(
+        userEntity.email,
+        userEntity.displayName,
+        resetToken,
+        { expiresIn: '30 minutes', lang: 'en' },
+      );
+    });
+
+    it('should no-op silently when the email is unknown', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(null);
+
+      await expect(service.forgotPassword('nope@b.com')).resolves.toBeUndefined();
+
+      expect(mockRedisService.set).not.toHaveBeenCalled();
+      expect(mockEmailService.sendPasswordResetEmail).not.toHaveBeenCalled();
+    });
+
+    it('should no-op silently when the user is blocked', async () => {
+      mockUsersService.findByEmail.mockResolvedValue({
+        ...userEntity,
+        isBlocked: true,
+      });
+
+      await service.forgotPassword('a@b.com');
+
+      expect(mockRedisService.set).not.toHaveBeenCalled();
+      expect(mockEmailService.sendPasswordResetEmail).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('should throw UnauthorizedException when the token is invalid/expired', async () => {
+      mockRedisService.get.mockResolvedValue(null);
+
+      await expect(service.resetPassword('bad-token', 'NewPw1!')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockUsersService.updatePassword).not.toHaveBeenCalled();
+    });
+
+    it('should consume the token and reject when the user is gone', async () => {
+      mockRedisService.get.mockResolvedValue('u1');
+      mockUsersService.findById.mockResolvedValue(null);
+
+      await expect(service.resetPassword('tok', 'NewPw1!')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockRedisService.del).toHaveBeenCalledWith('auth:password-reset:tok');
+      expect(mockUsersService.updatePassword).not.toHaveBeenCalled();
+    });
+
+    it('should reject a blocked user but still consume the token', async () => {
+      mockRedisService.get.mockResolvedValue('u1');
+      mockUsersService.findById.mockResolvedValue({
+        ...userEntity,
+        isBlocked: true,
+      });
+
+      await expect(service.resetPassword('tok', 'NewPw1!')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockRedisService.del).toHaveBeenCalledWith('auth:password-reset:tok');
+      expect(mockUsersService.updatePassword).not.toHaveBeenCalled();
+    });
+
+    it('should update the password, consume the token, and invalidate sessions', async () => {
+      mockRedisService.get.mockResolvedValue('u1');
+      mockUsersService.findById.mockResolvedValue(userEntity);
+
+      await service.resetPassword('tok', 'NewPw1!');
+
+      expect(mockRedisService.del).toHaveBeenCalledWith('auth:password-reset:tok');
+      expect(mockUsersService.updatePassword).toHaveBeenCalledWith('u1', 'NewPw1!');
+      // sessions invalidated: refresh session dropped + access tokens revoked
+      expect(mockRedisService.del).toHaveBeenCalledWith('user:session:u1');
+      expect(mockRedisService.set).toHaveBeenCalledWith(
+        'auth:revoke-before:u1',
+        expect.any(String),
+        900,
+      );
     });
   });
 
