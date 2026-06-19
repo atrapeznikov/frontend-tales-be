@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { JwtStrategy } from './jwt.strategy.js';
 import { UsersService } from '../../users/users.service.js';
 import { RedisService } from '../../redis/redis.service.js';
@@ -31,6 +31,7 @@ describe('JwtStrategy', () => {
       email: 'a@b.com',
       role: 'USER',
       displayName: 'Alex',
+      isVerified: true,
     });
 
     const result = await strategy.validate({
@@ -54,5 +55,19 @@ describe('JwtStrategy', () => {
     await expect(
       strategy.validate({ sub: 'u1', email: 'a@b.com', role: 'USER' }),
     ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('should throw ForbiddenException when the email is not verified', async () => {
+    usersService.findById.mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.com',
+      role: 'USER',
+      displayName: 'Alex',
+      isVerified: false,
+    });
+
+    await expect(
+      strategy.validate({ sub: 'u1', email: 'a@b.com', role: 'USER' }),
+    ).rejects.toThrow(ForbiddenException);
   });
 });

@@ -202,7 +202,13 @@ describe('UsersService', () => {
 
     it('should link new oauth account when user with email exists', async () => {
       mockPrisma.oAuthAccount.findUnique.mockResolvedValue(null);
-      const existingUser = { id: 'u1', email: 'a@b.com', avatarUrl: 'https://x/y.png' };
+      // Already has an avatar and is verified — nothing to update, return as-is.
+      const existingUser = {
+        id: 'u1',
+        email: 'a@b.com',
+        avatarUrl: 'https://x/y.png',
+        isVerified: true,
+      };
       mockPrisma.user.findUnique.mockResolvedValue(existingUser);
       mockPrisma.oAuthAccount.create.mockResolvedValue({});
 
@@ -215,7 +221,32 @@ describe('UsersService', () => {
           providerAccountId: 'gid-1',
         },
       });
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
       expect(result).toBe(existingUser);
+    });
+
+    it('should verify an unverified user when they link an oauth account', async () => {
+      mockPrisma.oAuthAccount.findUnique.mockResolvedValue(null);
+      const existingUser = {
+        id: 'u1',
+        email: 'a@b.com',
+        avatarUrl: 'https://x/y.png',
+        isVerified: false,
+      };
+      mockPrisma.user.findUnique.mockResolvedValue(existingUser);
+      mockPrisma.oAuthAccount.create.mockResolvedValue({});
+      mockPrisma.user.update.mockResolvedValue({
+        ...existingUser,
+        isVerified: true,
+      });
+
+      const result = await service.findOrCreateByOAuth(profile);
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: { isVerified: true },
+      });
+      expect(result.isVerified).toBe(true);
     });
 
     it('should create the first user with ADMIN role', async () => {
@@ -243,6 +274,8 @@ describe('UsersService', () => {
 
       const callArg = mockPrisma.user.create.mock.calls[0][0];
       expect(callArg.data.role).toBe('USER');
+      // OAuth provider verified the email, so the account is created verified.
+      expect(callArg.data.isVerified).toBe(true);
       expect(callArg.data.oauthAccounts).toEqual({
         create: { provider: 'GOOGLE', providerAccountId: 'gid-1' },
       });

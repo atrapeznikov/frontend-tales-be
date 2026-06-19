@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service.js';
@@ -25,6 +29,7 @@ describe('AuthService', () => {
     findById: jest.fn(),
     validatePassword: jest.fn(),
     updatePassword: jest.fn(),
+    markEmailVerified: jest.fn(),
     findByIdOrThrow: jest.fn(),
     getRandomDefaultAvatar: jest.fn().mockReturnValue('https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/default1.svg'),
     updateAvatarUrl: jest.fn().mockImplementation((userId, url) => Promise.resolve({
@@ -43,6 +48,7 @@ describe('AuthService', () => {
 
   const mockJwtService = {
     signAsync: jest.fn(),
+    verifyAsync: jest.fn(),
   };
 
   const mockConfigService = {
@@ -52,6 +58,8 @@ describe('AuthService', () => {
         JWT_ACCESS_EXPIRES_IN: '15m',
         JWT_REFRESH_SECRET: 'refresh-secret',
         JWT_REFRESH_EXPIRES_IN: '7d',
+        JWT_VERIFY_EMAIL_SECRET: 'verify-secret',
+        JWT_VERIFY_EMAIL_EXPIRES_IN: '24h',
       };
       return map[key];
     }),
@@ -66,6 +74,7 @@ describe('AuthService', () => {
   const mockEmailService = {
     sendWelcomeEmail: jest.fn().mockResolvedValue(undefined),
     sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+    sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
   };
 
   const userEntity = {
@@ -111,6 +120,12 @@ describe('AuthService', () => {
   describe('register', () => {
     it('should create a user and return tokens', async () => {
       mockUsersService.create.mockResolvedValue(userEntity);
+      // register signs three tokens in order: verify-email, access, refresh.
+      mockJwtService.signAsync
+        .mockReset()
+        .mockResolvedValueOnce('verify-token')
+        .mockResolvedValueOnce('access-token')
+        .mockResolvedValueOnce('refresh-token');
 
       const result = await service.register({
         email: 'a@b.com',
@@ -138,6 +153,17 @@ describe('AuthService', () => {
         userEntity.email,
         userEntity.displayName,
         undefined,
+      );
+      // The email-verification token (first signAsyncResult) is mailed out.
+      expect(mockJwtService.signAsync).toHaveBeenCalledWith(
+        { sub: userEntity.id, email: userEntity.email, type: 'email-verify' },
+        { secret: 'verify-secret', expiresIn: '24h' },
+      );
+      expect(mockEmailService.sendVerificationEmail).toHaveBeenCalledWith(
+        userEntity.email,
+        userEntity.displayName,
+        'verify-token',
+        { expiresIn: '24 hours', lang: undefined },
       );
     });
   });
@@ -307,6 +333,136 @@ describe('AuthService', () => {
         expect.any(String),
         900,
       );
+    });
+  });
+
+  describe('verifyEmail', () => {
+    it('should mark the email verified for a valid token', async () => {
+      mockJwtService.verifyAsync.mockResolvedValue({
+        sub: 'u1',
+        email: 'a@b.com',
+        type: 'email-verify',
+      });
+      mockUsersService.findById.mockResolvedValue({
+        ...userEntity,
+        isVerified: false,
+      });
+
+      const result = await service.verifyEmail('good-token');
+
+      expect(mockJwtService.verifyAsync).toHaveBeenCalledWith('good-token', {
+        secret: 'verify-secret',
+      });
+      expect(mockUsersService.markEmailVerified).toHaveBeenCalledWith('u1');
+      expect(result).toEqual({ alreadyVerified: false });
+    });
+
+    it('should be idempotent and report alreadyVerified when already verified', async () => {
+      mockJwtService.verifyAsync.mockResolvedValue({
+        sub: 'u1',
+        email: 'a@b.com',
+        type: 'email-verify',
+      });
+      mockUsersService.findById.mockResolvedValue({
+        ...userEntity,
+        isVerified: true,
+      });
+
+      const result = await service.verifyEmail('good-token');
+
+      expect(mockUsersService.markEmailVerified).not.toHaveBeenCalled();
+      expect(result).toEqual({ alreadyVerified: true });
+    });
+
+    it('should throw BadRequestException for an invalid/expired token', async () => {
+      mockJwtService.verifyAsync.mockRejectedValue(new Error('jwt expired'));
+
+      await expect(service.verifyEmail('bad-token')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockUsersService.markEmailVerified).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException when the token type is wrong', async () => {
+      mockJwtService.verifyAsync.mockResolvedValue({
+        sub: 'u1',
+        email: 'a@b.com',
+        type: 'password-reset',
+      });
+
+      await expect(service.verifyEmail('wrong-type')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockUsersService.markEmailVerified).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException when the user no longer exists', async () => {
+      mockJwtService.verifyAsync.mockResolvedValue({
+        sub: 'gone',
+        email: 'a@b.com',
+        type: 'email-verify',
+      });
+      mockUsersService.findById.mockResolvedValue(null);
+
+      await expect(service.verifyEmail('orphan-token')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockUsersService.markEmailVerified).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resendVerificationEmail', () => {
+    it('should mint a token and send the email for an unverified user', async () => {
+      mockUsersService.findByEmail.mockResolvedValue({
+        ...userEntity,
+        isVerified: false,
+      });
+      mockJwtService.signAsync.mockReset().mockResolvedValueOnce('verify-token');
+
+      await service.resendVerificationEmail('a@b.com', 'ru');
+
+      expect(mockJwtService.signAsync).toHaveBeenCalledWith(
+        { sub: userEntity.id, email: userEntity.email, type: 'email-verify' },
+        { secret: 'verify-secret', expiresIn: '24h' },
+      );
+      expect(mockEmailService.sendVerificationEmail).toHaveBeenCalledWith(
+        userEntity.email,
+        userEntity.displayName,
+        'verify-token',
+        { expiresIn: '24 часа', lang: 'ru' },
+      );
+    });
+
+    it('should no-op silently when the email is unknown', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(null);
+
+      await expect(
+        service.resendVerificationEmail('nope@b.com'),
+      ).resolves.toBeUndefined();
+      expect(mockEmailService.sendVerificationEmail).not.toHaveBeenCalled();
+    });
+
+    it('should no-op silently when the user is already verified', async () => {
+      mockUsersService.findByEmail.mockResolvedValue({
+        ...userEntity,
+        isVerified: true,
+      });
+
+      await service.resendVerificationEmail('a@b.com');
+
+      expect(mockEmailService.sendVerificationEmail).not.toHaveBeenCalled();
+    });
+
+    it('should no-op silently when the user is blocked', async () => {
+      mockUsersService.findByEmail.mockResolvedValue({
+        ...userEntity,
+        isVerified: false,
+        isBlocked: true,
+      });
+
+      await service.resendVerificationEmail('a@b.com');
+
+      expect(mockEmailService.sendVerificationEmail).not.toHaveBeenCalled();
     });
   });
 
