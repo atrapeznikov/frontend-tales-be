@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -27,6 +31,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
     if (user.isBlocked) {
       throw new UnauthorizedException('User is blocked');
+    }
+
+    // Gate every authenticated request behind email verification. The
+    // verify-email endpoint is @Public(), so an unverified user can still
+    // confirm their address; everything else stays closed until they do.
+    if (!user.isVerified) {
+      throw new ForbiddenException('Email is not verified');
     }
 
     // Enforce hard logout: reject access tokens issued before the user's

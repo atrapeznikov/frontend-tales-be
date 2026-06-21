@@ -10,6 +10,7 @@ import {
 import { getWelcomeEmailTemplate } from './templates/welcome.template.js';
 import { getNewCommentTemplate } from './templates/new-comment.template.js';
 import { getPasswordResetTemplate } from './templates/password-reset.template.js';
+import { getVerifyEmailTemplate } from './templates/verify-email.template.js';
 import { v4 as uuid } from 'uuid';
 
 const possiblePaths = [
@@ -228,6 +229,53 @@ export class EmailService {
     } catch (error) {
       this.logger.error(
         `Critical: Password reset email could not be sent to ${to}: ${error}`,
+      );
+    }
+  }
+
+  /**
+   * Sends an email-verification message containing a single link the user
+   * clicks to confirm ownership of their address after registration.
+   */
+  async sendVerificationEmail(
+    to: string,
+    displayName: string,
+    verifyToken: string,
+    options?: { expiresIn?: string; lang?: 'en' | 'ru' },
+  ): Promise<void> {
+    const frontendUrl = this.configService.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:3001',
+    );
+    const verifyUrl = `${frontendUrl}/verify-email?token=${encodeURIComponent(
+      verifyToken,
+    )}`;
+
+    const { subject, html, text } = getVerifyEmailTemplate({
+      displayName,
+      verifyUrl,
+      frontendUrl,
+      expiresIn: options?.expiresIn,
+      lang: options?.lang,
+    });
+
+    try {
+      await this.sendWithRetry({
+        to,
+        subject,
+        html,
+        text,
+        attachments: [
+          {
+            filename: 'avatar.png',
+            path: avatarPath,
+            cid: 'avatar',
+          },
+        ],
+      });
+    } catch (error) {
+      this.logger.error(
+        `Critical: Verification email could not be sent to ${to}: ${error}`,
       );
     }
   }

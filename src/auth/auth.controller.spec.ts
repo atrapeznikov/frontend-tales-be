@@ -19,6 +19,8 @@ describe('AuthController', () => {
     setupNickname: jest.fn(),
     forgotPassword: jest.fn(),
     resetPassword: jest.fn(),
+    verifyEmail: jest.fn(),
+    resendVerificationEmail: jest.fn(),
   };
 
   const mockConfigService = {
@@ -240,6 +242,61 @@ describe('AuthController', () => {
       expect(result).toEqual({
         message: 'Password has been reset successfully.',
       });
+    });
+  });
+
+  describe('verifyEmail', () => {
+    it('should return the success message on first verification', async () => {
+      mockAuthService.verifyEmail.mockResolvedValue({ alreadyVerified: false });
+
+      const result = await controller.verifyEmail({ token: 'verify-tok' });
+
+      expect(mockAuthService.verifyEmail).toHaveBeenCalledWith('verify-tok');
+      expect(result).toEqual({ message: 'Email verified successfully.' });
+    });
+
+    it('should return the already-verified message on a repeated click', async () => {
+      mockAuthService.verifyEmail.mockResolvedValue({ alreadyVerified: true });
+
+      const result = await controller.verifyEmail({ token: 'verify-tok' });
+
+      expect(result).toEqual({ message: 'Email is already verified.' });
+    });
+  });
+
+  describe('resendVerification', () => {
+    it('should call service with email and resolved lang, returning a generic message', async () => {
+      mockAuthService.resendVerificationEmail.mockResolvedValue(undefined);
+      const req = { headers: { 'accept-language': 'ru-RU' } };
+
+      const result = await controller.resendVerification(
+        { email: 'a@b.com' },
+        req as any,
+      );
+
+      expect(mockAuthService.resendVerificationEmail).toHaveBeenCalledWith(
+        'a@b.com',
+        'ru',
+      );
+      expect(result).toEqual({
+        message:
+          'If your account needs verification, a new verification link has been sent.',
+      });
+    });
+
+    it('should prefer the explicit lang from the body', async () => {
+      mockAuthService.resendVerificationEmail.mockResolvedValue(undefined);
+      const req = { headers: { 'accept-language': 'ru-RU' } };
+
+      await controller.resendVerification(
+        { email: 'a@b.com', lang: 'en' },
+        req as any,
+      );
+
+      expect(mockAuthService.resendVerificationEmail).toHaveBeenCalledWith(
+        'a@b.com',
+        'en',
+      );
     });
   });
 

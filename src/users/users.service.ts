@@ -138,13 +138,22 @@ export class UsersService {
           providerAccountId: profile.providerAccountId,
         },
       });
-      if (!existingUser.avatarUrl) {
-        const defaultAvatar = this.getRandomDefaultAvatar();
-        const updatedUser = await this.prisma.user.update({
+
+      // The provider already proved ownership of this email, so verify the
+      // account; also backfill a default avatar if it's missing. Only touch the
+      // DB when something actually changes.
+      const needsAvatar = !existingUser.avatarUrl;
+      const needsVerify = !existingUser.isVerified;
+      if (needsAvatar || needsVerify) {
+        return this.prisma.user.update({
           where: { id: existingUser.id },
-          data: { avatarUrl: defaultAvatar },
+          data: {
+            ...(needsAvatar
+              ? { avatarUrl: this.getRandomDefaultAvatar() }
+              : {}),
+            ...(needsVerify ? { isVerified: true } : {}),
+          },
         });
-        return updatedUser;
       }
       return existingUser;
     }
@@ -160,6 +169,8 @@ export class UsersService {
         nickname: null, // Left as null until user sets it
         avatarUrl: profile.avatarUrl || this.getRandomDefaultAvatar(),
         role,
+        // OAuth provider already verified the email — skip our own flow.
+        isVerified: true,
         oauthAccounts: {
           create: {
             provider: profile.provider,
@@ -255,6 +266,14 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id: userId },
       data: { passwordHash },
+    });
+  }
+
+  /** Marks the user's email as verified (idempotent — safe to call twice). */
+  async markEmailVerified(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { isVerified: true },
     });
   }
 

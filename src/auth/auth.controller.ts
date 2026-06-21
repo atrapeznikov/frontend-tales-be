@@ -5,6 +5,7 @@ import {
   UseGuards,
   UseInterceptors,
   Get,
+  Query,
   Req,
   Res,
   HttpCode,
@@ -27,6 +28,8 @@ import { AccessTokenDto } from './dto/tokens.dto.js';
 import { SetupNicknameDto } from './dto/setup-nickname.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
+import { VerifyEmailDto } from './dto/verify-email.dto.js';
+import { ResendVerificationDto } from './dto/resend-verification.dto.js';
 import { Public, CurrentUser } from '../common/decorators/index.js';
 import {
   LoginRateLimitInterceptor,
@@ -151,6 +154,55 @@ export class AuthController {
   ): Promise<{ message: string }> {
     await this.authService.resetPassword(dto.token, dto.password);
     return { message: 'Password has been reset successfully.' };
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Get('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify a user email via the link sent on signup' })
+  @ApiResponse({
+    status: 200,
+    description: 'Email verified (or was already verified)',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Verification link is invalid or has expired',
+  })
+  async verifyEmail(
+    @Query() query: VerifyEmailDto,
+  ): Promise<{ message: string }> {
+    const { alreadyVerified } = await this.authService.verifyEmail(query.token);
+    return {
+      message: alreadyVerified
+        ? 'Email is already verified.'
+        : 'Email verified successfully.',
+    };
+  }
+
+  @Public()
+  @UseInterceptors(CaptchaInterceptor)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend the email-verification link' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Always returns success — if the email needs verifying, a new link is sent.',
+  })
+  async resendVerification(
+    @Body() dto: ResendVerificationDto,
+    @Req() req: express.Request,
+  ): Promise<{ message: string }> {
+    const lang =
+      dto.lang ||
+      (req.headers['accept-language']?.startsWith('ru') ? 'ru' : 'en');
+    await this.authService.resendVerificationEmail(dto.email, lang);
+    return {
+      message:
+        'If your account needs verification, a new verification link has been sent.',
+    };
   }
 
   @Post('logout')

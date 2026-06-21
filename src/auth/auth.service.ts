@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
@@ -38,6 +39,17 @@ export const passwordResetKey = (token: string): string =>
 
 /** Password reset tokens are valid for 30 minutes. */
 const PASSWORD_RESET_TTL_SECONDS = 30 * 60;
+
+/** Email-verification tokens default to a 24h lifetime when not configured. */
+const EMAIL_VERIFY_DEFAULT_EXPIRES_IN = '24h';
+
+/** Payload embedded in the signed email-verification token. */
+interface EmailVerifyPayload {
+  sub: string;
+  email: string;
+  // Discriminator so a token minted for one purpose can't be replayed elsewhere.
+  type: 'email-verify';
+}
 
 interface UserEntity {
   id: string;
@@ -80,6 +92,24 @@ export class AuthService {
         const msg = err instanceof Error ? err.message : String(err);
         this.logger.error(
           `Failed to send welcome email to ${user.email}: ${msg}`,
+        );
+      });
+
+    // Fire-and-forget the verification email so a mail outage never blocks
+    // (or rolls back) a successful registration.
+    const verifyToken = await this.generateEmailVerificationToken(
+      user.id,
+      user.email,
+    );
+    this.emailService
+      .sendVerificationEmail(user.email, user.displayName, verifyToken, {
+        expiresIn: targetLang === 'ru' ? '24 часа' : '24 hours',
+        lang: targetLang,
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(
+          `Failed to send verification email to ${user.email}: ${msg}`,
         );
       });
 
@@ -218,6 +248,119 @@ export class AuthService {
     await this.invalidateUserSessions(userId);
 
     this.logger.log(`Password reset completed for user ${userId}`);
+  }
+
+  /**
+   * Mints a short-lived, self-contained JWT used to verify ownership of an
+   * email address. The token carries the user id and is signed with a
+   * dedicated secret so it can't be confused with access/refresh tokens.
+   */
+  async generateEmailVerificationToken(
+    userId: string,
+    email: string,
+  ): Promise<string> {
+    const payload: EmailVerifyPayload = {
+      sub: userId,
+      email,
+      type: 'email-verify',
+    };
+
+    return this.jwtService.signAsync(payload, {
+      secret: this.getEmailVerifySecret(),
+      expiresIn: (this.configService.get<string>('JWT_VERIFY_EMAIL_EXPIRES_IN') ||
+        EMAIL_VERIFY_DEFAULT_EXPIRES_IN) as JwtSignOptions['expiresIn'],
+    });
+  }
+
+  /**
+   * Validates an email-verification token and flips the user's `isVerified`
+   * flag. Throws BadRequestException (400) on any invalid/expired/forged token.
+   *
+   * Idempotent: re-clicking a still-valid link on an already-verified account
+   * succeeds and reports `alreadyVerified: true` so the controller can show a
+   * distinct "already verified" message instead of "just verified".
+   */
+  async verifyEmail(token: string): Promise<{ alreadyVerified: boolean }> {
+    let payload: EmailVerifyPayload;
+    try {
+      payload = await this.jwtService.verifyAsync<EmailVerifyPayload>(token, {
+        secret: this.getEmailVerifySecret(),
+      });
+    } catch {
+      // Covers expired tokens, bad signatures and malformed input alike.
+      throw new BadRequestException(
+        'Verification link is invalid or has expired',
+      );
+    }
+
+    if (payload.type !== 'email-verify') {
+      throw new BadRequestException('Verification link is invalid');
+    }
+
+    const user = await this.usersService.findById(payload.sub);
+    if (!user) {
+      throw new BadRequestException(
+        'Verification link is invalid or has expired',
+      );
+    }
+
+    if (user.isVerified) {
+      return { alreadyVerified: true };
+    }
+
+    await this.usersService.markEmailVerified(user.id);
+    this.logger.log(`Email verified for user ${user.id}`);
+    return { alreadyVerified: false };
+  }
+
+  /**
+   * Re-sends the verification email. Like forgotPassword, this resolves
+   * successfully regardless of whether the email exists, is blocked, or is
+   * already verified — so it can't be used to probe which emails are
+   * registered or already confirmed.
+   */
+  async resendVerificationEmail(
+    email: string,
+    lang?: 'en' | 'ru',
+  ): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+
+    // No-op for unknown/blocked/already-verified accounts (no enumeration).
+    if (!user || user.isBlocked || user.isVerified) {
+      return;
+    }
+
+    const verifyToken = await this.generateEmailVerificationToken(
+      user.id,
+      user.email,
+    );
+
+    this.emailService
+      .sendVerificationEmail(user.email, user.displayName, verifyToken, {
+        expiresIn: lang === 'ru' ? '24 часа' : '24 hours',
+        lang,
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(
+          `Failed to resend verification email to ${user.email}: ${msg}`,
+        );
+      });
+  }
+
+  /**
+   * Secret used to sign/verify email-verification tokens. Falls back to
+   * JWT_ACCESS_SECRET (with a warning) so existing deployments keep working
+   * until the dedicated secret is configured.
+   */
+  private getEmailVerifySecret(): string {
+    const dedicated = this.configService.get<string>('JWT_VERIFY_EMAIL_SECRET');
+    if (dedicated) return dedicated;
+    this.logger.warn(
+      'JWT_VERIFY_EMAIL_SECRET is not set — falling back to JWT_ACCESS_SECRET ' +
+        'for email-verification links. Set a dedicated secret in production.',
+    );
+    return this.configService.get<string>('JWT_ACCESS_SECRET')!;
   }
 
   /**
