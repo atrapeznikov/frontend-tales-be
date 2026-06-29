@@ -43,11 +43,12 @@ export class UsersController {
     @UploadedFile(
       new ParseFilePipe({
         validators: [
-          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new MaxFileSizeValidator({ maxSize: 1 * 1024 * 1024 }),
           // SVG intentionally excluded: it is XML and can carry executable
           // script, which would be stored XSS once served from our asset host.
+          // GIF excluded too — only static png/jpg/webp avatars are allowed.
           // FileTypeValidator inspects magic numbers, not the client mimetype.
-          new FileTypeValidator({ fileType: 'image/(png|jpeg|webp|gif)' }),
+          new FileTypeValidator({ fileType: 'image/(png|jpeg|webp)' }),
         ],
       }),
     )
