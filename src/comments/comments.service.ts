@@ -40,7 +40,7 @@ export class CommentsService {
       take: 4,
       cursor: cursor ? { id: cursor } : undefined,
       skip: cursor ? 1 : 0,
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
       include: {
         user: {
           select: {
@@ -100,7 +100,7 @@ export class CommentsService {
         },
       },
       orderBy: {
-        createdAt: 'asc',
+        createdAt: 'desc',
       },
     });
 
