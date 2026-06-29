@@ -10,7 +10,11 @@ import {
   GithubStrategy,
   YandexStrategy,
 } from './strategies';
-import { LoginRateLimitInterceptor, CaptchaInterceptor } from './interceptors';
+import {
+  LoginRateLimitInterceptor,
+  CaptchaInterceptor,
+  LoginCaptchaInterceptor,
+} from './interceptors';
 import { CaptchaService } from './captcha';
 import { UsersModule } from '../users';
 import { EmailModule } from '../email/index.js';
@@ -29,6 +33,7 @@ import { EmailModule } from '../email/index.js';
     JwtRefreshStrategy,
     LoginRateLimitInterceptor,
     CaptchaInterceptor,
+    LoginCaptchaInterceptor,
     CaptchaService,
     GoogleStrategy,
     GithubStrategy,

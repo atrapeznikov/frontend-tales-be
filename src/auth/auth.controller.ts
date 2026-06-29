@@ -34,6 +34,7 @@ import { Public, CurrentUser } from '../common/decorators/index.js';
 import {
   LoginRateLimitInterceptor,
   CaptchaInterceptor,
+  LoginCaptchaInterceptor,
 } from './interceptors/index.js';
 
 interface AuthenticatedUser {
@@ -81,7 +82,7 @@ export class AuthController {
   }
 
   @Public()
-  @UseInterceptors(CaptchaInterceptor, LoginRateLimitInterceptor)
+  @UseInterceptors(LoginCaptchaInterceptor, LoginRateLimitInterceptor)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })

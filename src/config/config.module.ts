@@ -65,6 +65,10 @@ import * as Joi from 'joi';
         // Explicit captcha enablement. When unset, captcha is required in every
         // environment except 'development'. Set to 'false' to force-disable.
         CAPTCHA_ENABLED: Joi.boolean().optional(),
+        // Number of failed login attempts (per IP or email) after which the
+        // login route starts demanding a captcha. 0 means "always require".
+        // Keep in sync with the frontend's CAPTCHA_AFTER_ATTEMPTS.
+        CAPTCHA_AFTER_FAILURES: Joi.number().min(0).default(3),
 
         // Email Configuration
         EMAIL_PROVIDER: Joi.string()
