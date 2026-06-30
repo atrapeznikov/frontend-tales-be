@@ -211,9 +211,7 @@ export class UsersService {
       this.configService.get<string>('AVATAR_DB_PREFIX') ||
       'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/';
     const avatarUrl = `${dbPrefix}${filename}`;
-eTypeValidator({ fileType: 'image/(png|jpeg|webp|gif)' }),
-          new FileTypeValidator({ fileType: 'image/(png|jpeg|webp)' }),
-        ],
+
     // Delete old avatar from S3 if it was not a default avatar and was hosted on our S3
     const oldAvatarUrl = user.avatarUrl;
     if (oldAvatarUrl && oldAvatarUrl.startsWith(dbPrefix)) {

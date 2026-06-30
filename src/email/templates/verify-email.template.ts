@@ -140,6 +140,7 @@ export function getVerifyEmailTemplate(data: VerifyEmailData): {
       line-height: 1.5;
       color: #4f46e5;
       word-break: break-all;
+      overflow-wrap: break-word;
       margin-top: 0;
       margin-bottom: 24px;
     }
@@ -187,8 +188,8 @@ export function getVerifyEmailTemplate(data: VerifyEmailData): {
           <p class="paragraph" style="margin-bottom: 8px;">
             ${fallback}
           </p>
-          <p class="url-fallback">
-            <a href="${verifyUrl}" class="footer-link">${verifyUrl}</a>
+          <p class="url-fallback" style="word-break: break-all; overflow-wrap: break-word;">
+            <a href="${verifyUrl}" class="footer-link" style="word-break: break-all; overflow-wrap: break-word;">${verifyUrl}</a>
           </p>
           <p class="paragraph">
             ${expiryNotice}
