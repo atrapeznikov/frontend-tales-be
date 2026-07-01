@@ -139,6 +139,7 @@ export function getPasswordResetTemplate(data: PasswordResetEmailData): {
       line-height: 1.5;
       color: #4f46e5;
       word-break: break-all;
+      overflow-wrap: break-word;
       margin-top: 0;
       margin-bottom: 24px;
     }
@@ -186,8 +187,8 @@ export function getPasswordResetTemplate(data: PasswordResetEmailData): {
           <p class="paragraph" style="margin-bottom: 8px;">
             ${fallback}
           </p>
-          <p class="url-fallback">
-            <a href="${resetUrl}" class="footer-link">${resetUrl}</a>
+          <p class="url-fallback" style="word-break: break-all; overflow-wrap: break-word;">
+            <a href="${resetUrl}" class="footer-link" style="word-break: break-all; overflow-wrap: break-word;">${resetUrl}</a>
           </p>
           <p class="paragraph">
             ${expiryNotice}
