@@ -37,6 +37,23 @@ export const tokenRevokeKey = (userId: string): string =>
 export const passwordResetKey = (token: string): string =>
   `auth:password-reset:${token}`;
 
+/**
+ * Redis key holding the currently active password-reset token for a user.
+ * Only the token this points to is honoured, so requesting a new reset link
+ * (or completing a reset) invalidates any previously issued link.
+ */
+export const passwordResetActiveKey = (userId: string): string =>
+  `auth:password-reset-active:${userId}`;
+
+/**
+ * Redis key holding the jti of the most recently issued email-verification
+ * token for a user. Only the token whose jti matches this value is accepted,
+ * so minting a new verification token (e.g. via resend) invalidates any
+ * earlier ones automatically.
+ */
+export const emailVerifyJtiKey = (userId: string): string =>
+  `auth:email-verify-jti:${userId}`;
+
 /** Password reset tokens are valid for 30 minutes. */
 const PASSWORD_RESET_TTL_SECONDS = 30 * 60;
 
@@ -49,6 +66,9 @@ interface EmailVerifyPayload {
   email: string;
   // Discriminator so a token minted for one purpose can't be replayed elsewhere.
   type: 'email-verify';
+  // Unique id for this token; checked against emailVerifyJtiKey so only the
+  // latest issued token is accepted.
+  jti: string;
 }
 
 interface UserEntity {
@@ -196,6 +216,9 @@ export class AuthService {
    * Redis keyed to the user, and emails the reset link. To avoid leaking which
    * emails are registered, this resolves successfully whether or not the email
    * matches an account, and never throws on a missing/blocked user.
+   *
+   * Any token issued by a previous call is invalidated: only the most
+   * recently issued link is accepted by `resetPassword`.
    */
   async forgotPassword(email: string, lang?: 'en' | 'ru'): Promise<void> {
     const user = await this.usersService.findByEmail(email);
@@ -205,10 +228,22 @@ export class AuthService {
       return;
     }
 
+    const previousToken = await this.redisService.get(
+      passwordResetActiveKey(user.id),
+    );
+    if (previousToken) {
+      await this.redisService.del(passwordResetKey(previousToken));
+    }
+
     const token = crypto.randomBytes(32).toString('hex');
     await this.redisService.set(
       passwordResetKey(token),
       user.id,
+      PASSWORD_RESET_TTL_SECONDS,
+    );
+    await this.redisService.set(
+      passwordResetActiveKey(user.id),
+      token,
       PASSWORD_RESET_TTL_SECONDS,
     );
 
@@ -236,8 +271,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired reset token');
     }
 
-    // Consume the token immediately (single-use) to prevent replay.
+    // Consume the token immediately (single-use) to prevent replay, and drop
+    // the active-token pointer so no other outstanding link stays honoured.
     await this.redisService.del(passwordResetKey(token));
+    await this.redisService.del(passwordResetActiveKey(userId));
 
     const user = await this.usersService.findById(userId);
     if (!user || user.isBlocked) {
@@ -254,22 +291,38 @@ export class AuthService {
    * Mints a short-lived, self-contained JWT used to verify ownership of an
    * email address. The token carries the user id and is signed with a
    * dedicated secret so it can't be confused with access/refresh tokens.
+   *
+   * The token's jti is recorded in Redis as the user's *only* valid jti, so
+   * minting a new token (e.g. on resend) invalidates any previously issued
+   * verification link for that user.
    */
   async generateEmailVerificationToken(
     userId: string,
     email: string,
   ): Promise<string> {
+    const expiresIn = this.configService.get<string>('JWT_VERIFY_EMAIL_EXPIRES_IN') ||
+      EMAIL_VERIFY_DEFAULT_EXPIRES_IN;
+    const jti = uuid();
+
     const payload: EmailVerifyPayload = {
       sub: userId,
       email,
       type: 'email-verify',
+      jti,
     };
 
-    return this.jwtService.signAsync(payload, {
+    const token = await this.jwtService.signAsync(payload, {
       secret: this.getEmailVerifySecret(),
-      expiresIn: (this.configService.get<string>('JWT_VERIFY_EMAIL_EXPIRES_IN') ||
-        EMAIL_VERIFY_DEFAULT_EXPIRES_IN) as JwtSignOptions['expiresIn'],
+      expiresIn: expiresIn as JwtSignOptions['expiresIn'],
     });
+
+    await this.redisService.set(
+      emailVerifyJtiKey(userId),
+      jti,
+      this.parseDurationSeconds(expiresIn, 24 * 3600),
+    );
+
+    return token;
   }
 
   /**
@@ -308,7 +361,18 @@ export class AuthService {
       return { alreadyVerified: true };
     }
 
+    // Only the most recently issued token for this user is accepted — an
+    // earlier link superseded by a later signup/resend is rejected here even
+    // though its own signature and expiry are still valid.
+    const currentJti = await this.redisService.get(emailVerifyJtiKey(user.id));
+    if (!currentJti || currentJti !== payload.jti) {
+      throw new BadRequestException(
+        'Verification link is invalid or has expired',
+      );
+    }
+
     await this.usersService.markEmailVerified(user.id);
+    await this.redisService.del(emailVerifyJtiKey(user.id));
     this.logger.log(`Email verified for user ${user.id}`);
     return { alreadyVerified: false };
   }

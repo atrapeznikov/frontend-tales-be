@@ -156,7 +156,12 @@ describe('AuthService', () => {
       );
       // The email-verification token (first signAsyncResult) is mailed out.
       expect(mockJwtService.signAsync).toHaveBeenCalledWith(
-        { sub: userEntity.id, email: userEntity.email, type: 'email-verify' },
+        {
+          sub: userEntity.id,
+          email: userEntity.email,
+          type: 'email-verify',
+          jti: 'fixed-uuid',
+        },
         { secret: 'verify-secret', expiresIn: '24h' },
       );
       expect(mockEmailService.sendVerificationEmail).toHaveBeenCalledWith(
@@ -245,6 +250,7 @@ describe('AuthService', () => {
 
     it('should store a reset token and send the email for a known user', async () => {
       mockUsersService.findByEmail.mockResolvedValue(userEntity);
+      mockRedisService.get.mockResolvedValue(null);
 
       await service.forgotPassword('a@b.com', 'en');
 
@@ -253,11 +259,32 @@ describe('AuthService', () => {
         userEntity.id,
         30 * 60,
       );
+      expect(mockRedisService.set).toHaveBeenCalledWith(
+        `auth:password-reset-active:${userEntity.id}`,
+        resetToken,
+        30 * 60,
+      );
       expect(mockEmailService.sendPasswordResetEmail).toHaveBeenCalledWith(
         userEntity.email,
         userEntity.displayName,
         resetToken,
         { expiresIn: '30 minutes', lang: 'en' },
+      );
+    });
+
+    it('should invalidate a previously issued token when requested again', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(userEntity);
+      mockRedisService.get.mockResolvedValue('old-token');
+
+      await service.forgotPassword('a@b.com', 'en');
+
+      expect(mockRedisService.del).toHaveBeenCalledWith(
+        'auth:password-reset:old-token',
+      );
+      expect(mockRedisService.set).toHaveBeenCalledWith(
+        `auth:password-reset:${resetToken}`,
+        userEntity.id,
+        30 * 60,
       );
     });
 
@@ -301,6 +328,9 @@ describe('AuthService', () => {
         UnauthorizedException,
       );
       expect(mockRedisService.del).toHaveBeenCalledWith('auth:password-reset:tok');
+      expect(mockRedisService.del).toHaveBeenCalledWith(
+        'auth:password-reset-active:u1',
+      );
       expect(mockUsersService.updatePassword).not.toHaveBeenCalled();
     });
 
@@ -315,6 +345,9 @@ describe('AuthService', () => {
         UnauthorizedException,
       );
       expect(mockRedisService.del).toHaveBeenCalledWith('auth:password-reset:tok');
+      expect(mockRedisService.del).toHaveBeenCalledWith(
+        'auth:password-reset-active:u1',
+      );
       expect(mockUsersService.updatePassword).not.toHaveBeenCalled();
     });
 
@@ -325,6 +358,9 @@ describe('AuthService', () => {
       await service.resetPassword('tok', 'NewPw1!');
 
       expect(mockRedisService.del).toHaveBeenCalledWith('auth:password-reset:tok');
+      expect(mockRedisService.del).toHaveBeenCalledWith(
+        'auth:password-reset-active:u1',
+      );
       expect(mockUsersService.updatePassword).toHaveBeenCalledWith('u1', 'NewPw1!');
       // sessions invalidated: refresh session dropped + access tokens revoked
       expect(mockRedisService.del).toHaveBeenCalledWith('user:session:u1');
@@ -334,6 +370,41 @@ describe('AuthService', () => {
         900,
       );
     });
+
+    it('should reject a superseded reset link after a second forgotPassword request', async () => {
+      // Use a real in-memory store instead of jest mocks so forgotPassword's
+      // invalidation of the previous token is actually exercised end-to-end.
+      const store = new Map<string, string>();
+      mockRedisService.get.mockImplementation((key: string) =>
+        Promise.resolve(store.get(key) ?? null),
+      );
+      mockRedisService.set.mockImplementation((key: string, value: string) => {
+        store.set(key, value);
+        return Promise.resolve();
+      });
+      mockRedisService.del.mockImplementation((key: string) => {
+        store.delete(key);
+        return Promise.resolve();
+      });
+      mockUsersService.findByEmail.mockResolvedValue(userEntity);
+      mockUsersService.findById.mockResolvedValue(userEntity);
+
+      (crypto.randomBytes as jest.Mock).mockReturnValueOnce(
+        Buffer.from('token-one-bytes'),
+      );
+      await service.forgotPassword('a@b.com');
+      const oldToken = Buffer.from('token-one-bytes').toString('hex');
+
+      (crypto.randomBytes as jest.Mock).mockReturnValueOnce(
+        Buffer.from('token-two-bytes'),
+      );
+      await service.forgotPassword('a@b.com');
+
+      await expect(
+        service.resetPassword(oldToken, 'NewPw1!'),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(mockUsersService.updatePassword).not.toHaveBeenCalled();
+    });
   });
 
   describe('verifyEmail', () => {
@@ -342,11 +413,13 @@ describe('AuthService', () => {
         sub: 'u1',
         email: 'a@b.com',
         type: 'email-verify',
+        jti: 'fixed-uuid',
       });
       mockUsersService.findById.mockResolvedValue({
         ...userEntity,
         isVerified: false,
       });
+      mockRedisService.get.mockResolvedValue('fixed-uuid');
 
       const result = await service.verifyEmail('good-token');
 
@@ -354,6 +427,9 @@ describe('AuthService', () => {
         secret: 'verify-secret',
       });
       expect(mockUsersService.markEmailVerified).toHaveBeenCalledWith('u1');
+      expect(mockRedisService.del).toHaveBeenCalledWith(
+        'auth:email-verify-jti:u1',
+      );
       expect(result).toEqual({ alreadyVerified: false });
     });
 
@@ -362,6 +438,7 @@ describe('AuthService', () => {
         sub: 'u1',
         email: 'a@b.com',
         type: 'email-verify',
+        jti: 'fixed-uuid',
       });
       mockUsersService.findById.mockResolvedValue({
         ...userEntity,
@@ -401,10 +478,31 @@ describe('AuthService', () => {
         sub: 'gone',
         email: 'a@b.com',
         type: 'email-verify',
+        jti: 'fixed-uuid',
       });
       mockUsersService.findById.mockResolvedValue(null);
 
       await expect(service.verifyEmail('orphan-token')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockUsersService.markEmailVerified).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException for a superseded token (old link after a resend)', async () => {
+      mockJwtService.verifyAsync.mockResolvedValue({
+        sub: 'u1',
+        email: 'a@b.com',
+        type: 'email-verify',
+        jti: 'old-jti',
+      });
+      mockUsersService.findById.mockResolvedValue({
+        ...userEntity,
+        isVerified: false,
+      });
+      // A newer token was issued since, so Redis now holds a different jti.
+      mockRedisService.get.mockResolvedValue('newer-jti');
+
+      await expect(service.verifyEmail('old-token')).rejects.toThrow(
         BadRequestException,
       );
       expect(mockUsersService.markEmailVerified).not.toHaveBeenCalled();
@@ -422,8 +520,18 @@ describe('AuthService', () => {
       await service.resendVerificationEmail('a@b.com', 'ru');
 
       expect(mockJwtService.signAsync).toHaveBeenCalledWith(
-        { sub: userEntity.id, email: userEntity.email, type: 'email-verify' },
+        {
+          sub: userEntity.id,
+          email: userEntity.email,
+          type: 'email-verify',
+          jti: 'fixed-uuid',
+        },
         { secret: 'verify-secret', expiresIn: '24h' },
+      );
+      expect(mockRedisService.set).toHaveBeenCalledWith(
+        'auth:email-verify-jti:u1',
+        'fixed-uuid',
+        24 * 3600,
       );
       expect(mockEmailService.sendVerificationEmail).toHaveBeenCalledWith(
         userEntity.email,
