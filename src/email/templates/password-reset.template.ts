@@ -82,6 +82,7 @@ export function getPasswordResetTemplate(data: PasswordResetEmailData): {
     .content-table {
       width: 100%;
       max-width: 600px;
+      table-layout: fixed;
       margin: 0 auto;
       background-color: #ffffff;
       border-radius: 16px;
@@ -162,21 +163,21 @@ export function getPasswordResetTemplate(data: PasswordResetEmailData): {
     }
   </style>
 </head>
-<body>
-  <center class="wrapper">
-    <table class="content-table" role="presentation" cellpadding="0" cellspacing="0">
+<body style="margin: 0; padding: 0; width: 100%; background-color: #f8fafc;">
+  <center class="wrapper" style="width: 100%; table-layout: fixed; background-color: #f8fafc; padding-top: 40px; padding-bottom: 40px;">
+    <table class="content-table" role="presentation" cellpadding="0" cellspacing="0" width="100%" style="width: 100%; max-width: 600px; table-layout: fixed; margin: 0 auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0;">
       <!-- HEADER -->
       <tr>
-        <td class="header">
+        <td class="header" style="background: #08080c; padding: 40px 20px; text-align: center;">
           <div style="margin-bottom: 16px;">
             <img src="cid:avatar" alt="Logo" style="width: 70px; height: 70px; border-radius: 50%; border: 3px solid #ffffff; display: inline-block; vertical-align: middle; object-fit: cover;" />
           </div>
-          <h1>Frontend Tales</h1>
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 800;">Frontend Tales</h1>
         </td>
       </tr>
       <!-- BODY -->
       <tr>
-        <td class="body-content">
+        <td class="body-content" style="padding: 40px 30px; color: #1e293b; word-break: break-word; overflow-wrap: break-word;">
           <p class="welcome-text">${greeting}</p>
           <p class="paragraph">
             ${intro}
@@ -187,8 +188,8 @@ export function getPasswordResetTemplate(data: PasswordResetEmailData): {
           <p class="paragraph" style="margin-bottom: 8px;">
             ${fallback}
           </p>
-          <p class="url-fallback" style="word-break: break-all; overflow-wrap: break-word;">
-            <a href="${resetUrl}" class="footer-link" style="word-break: break-all; overflow-wrap: break-word;">${resetUrl}</a>
+          <p class="url-fallback" style="max-width: 100%; word-break: break-all; overflow-wrap: break-word;">
+            <a href="${resetUrl}" class="footer-link" style="max-width: 100%; word-break: break-all; overflow-wrap: break-word;">${resetUrl}</a>
           </p>
           <p class="paragraph">
             ${expiryNotice}
