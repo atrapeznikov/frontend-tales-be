@@ -20,8 +20,8 @@ export function getWelcomeEmailTemplate(data: WelcomeEmailData): {
   const greeting = isRu ? `Привет, ${displayName}!` : `Hey ${displayName},`;
 
   const intro = isRu
-    ? 'Добро пожаловать в сообщество Frontend Tales! <br> Мы очень рады, что вы присоединились к нам. Наша платформа создана для того, чтобы разработчики могли узнавать новое, учиться и делиться опытом.'
-    : 'Welcome to the Frontend Tales community! <br> We are absolutely thrilled to have you join us. Our platform is designed to help developers learn, share their knowledge and grow together.';
+    ? 'Добро пожаловать в сообщество Frontend Tales! <br> Мы очень рады, что вы присоединились к нам.'
+    : 'Welcome to the Frontend Tales community! <br> We are absolutely thrilled to have you join us.';
 
   const ready = isRu
     ? 'Готовы погрузиться? Нажмите кнопку ниже, чтобы перейти в личный кабинет'
@@ -38,8 +38,8 @@ export function getWelcomeEmailTemplate(data: WelcomeEmailData): {
     : 'Cheers,<br><strong>The Frontend Tales Team</strong>';
 
   const sentReason = isRu
-    ? `Вы получили это письмо, так как зарегистрировались на сайте <a href="${frontendUrl}" class="footer-link">Frontend Tales</a>.`
-    : `This email was sent to you because you signed up at <a href="${frontendUrl}" class="footer-link">Frontend Tales</a>.`;
+    ? `Вы получили это письмо, так как зарегистрировались на сайте <a href="${frontendUrl}" class="footer-link">frontendtales.ru</a>.`
+    : `This email was sent to you because you signed up at <a href="${frontendUrl}" class="footer-link">frontendtales.ru</a>.`;
 
   const copyright = isRu
     ? `&copy; ${new Date().getFullYear()} Frontend Tales. Все права защищены.`

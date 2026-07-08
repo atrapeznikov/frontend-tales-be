@@ -2,7 +2,6 @@ export interface PasswordResetEmailData {
   displayName: string;
   resetUrl: string;
   frontendUrl: string;
-  /** How long the reset link stays valid, e.g. '30 minutes' / '30 минут'. */
   expiresIn?: string;
   lang?: 'en' | 'ru';
 }
@@ -46,8 +45,8 @@ export function getPasswordResetTemplate(data: PasswordResetEmailData): {
     : 'Cheers,<br><strong>The Frontend Tales Team</strong>';
 
   const sentReason = isRu
-    ? `Вы получили это письмо, так как был сделан запрос на сброс пароля на сайте <a href="${frontendUrl}" class="footer-link">Frontend Tales</a>.`
-    : `This email was sent to you because a password reset was requested at <a href="${frontendUrl}" class="footer-link">Frontend Tales</a>.`;
+    ? `Вы получили это письмо, так как был сделан запрос на сброс пароля на сайте <a href="${frontendUrl}" class="footer-link">frontendtales.ru</a>.`
+    : `This email was sent to you because a password reset was requested at <a href="${frontendUrl}" class="footer-link">frontendtales.ru</a>.`;
 
   const copyright = isRu
     ? `&copy; ${new Date().getFullYear()} Frontend Tales. Все права защищены.`

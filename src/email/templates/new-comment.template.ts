@@ -27,10 +27,6 @@ export function getNewCommentTemplate(data: NewCommentEmailData): {
     blockLink,
   } = data;
 
-  // HTML-escaped variants for safe interpolation into the html body. The
-  // commentContent / authorName are user-controlled and would otherwise allow
-  // stored XSS in the recipient's mail client. (The plain-text body below does
-  // not need escaping.)
   const esc = {
     articleTitle: escapeHtml(articleTitle),
     authorName: escapeHtml(authorName),

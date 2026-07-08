@@ -1,9 +1,7 @@
 export interface VerifyEmailData {
   displayName: string;
-  /** Frontend link the CTA button points to (carries the verification token). */
   verifyUrl: string;
   frontendUrl: string;
-  /** How long the verification link stays valid, e.g. '24 hours' / '24 часа'. */
   expiresIn?: string;
   lang?: 'en' | 'ru';
 }
@@ -47,8 +45,8 @@ export function getVerifyEmailTemplate(data: VerifyEmailData): {
     : 'Cheers,<br><strong>The Frontend Tales Team</strong>';
 
   const sentReason = isRu
-    ? `Вы получили это письмо, так как зарегистрировались на сайте <a href="${frontendUrl}" class="footer-link">Frontend Tales</a>.`
-    : `This email was sent to you because you signed up at <a href="${frontendUrl}" class="footer-link">Frontend Tales</a>.`;
+    ? `Вы получили это письмо, так как зарегистрировались на сайте <a href="${frontendUrl}" class="footer-link">frontendtales.ru</a>.`
+    : `This email was sent to you because you signed up at <a href="${frontendUrl}" class="footer-link">frontendtales.ru</a>.`;
 
   const copyright = isRu
     ? `&copy; ${new Date().getFullYear()} Frontend Tales. Все права защищены.`
