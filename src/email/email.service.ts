@@ -16,6 +16,7 @@ import { v4 as uuid } from 'uuid';
 const possiblePaths = [
   path.join(__dirname, 'templates', 'avatar.png'),
   path.join(__dirname, '..', 'email', 'templates', 'avatar.png'),
+  path.join(__dirname, '..', '..', 'email', 'templates', 'avatar.png'),
   path.join(process.cwd(), 'src', 'email', 'templates', 'avatar.png'),
 ];
 
