@@ -111,8 +111,8 @@ export class EmailService {
       },
     );
 
-    const deleteLink = `${backendUrl}/api/admin/quick-actions/confirm?action=delete-comment&articleId=${data.articleId}&commentId=${data.commentId}&token=${deleteToken}`;
-    const blockLink = `${backendUrl}/api/admin/quick-actions/confirm?action=block-user&userId=${data.authorId}&token=${blockToken}`;
+    const deleteLink = `${backendUrl}/admin/quick-actions/confirm?action=delete-comment&articleId=${data.articleId}&commentId=${data.commentId}&token=${deleteToken}`;
+    const blockLink = `${backendUrl}/admin/quick-actions/confirm?action=block-user&userId=${data.authorId}&token=${blockToken}`;
     const articleLink = `${frontendUrl}/ru/blog/${data.articleSlug}`;
 
     const { subject, html, text } = getNewCommentTemplate({
