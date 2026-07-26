@@ -31,19 +31,25 @@ describe('AuthService', () => {
     updatePassword: jest.fn(),
     markEmailVerified: jest.fn(),
     findByIdOrThrow: jest.fn(),
-    getRandomDefaultAvatar: jest.fn().mockReturnValue('https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/default1.svg'),
-    updateAvatarUrl: jest.fn().mockImplementation((userId, url) => Promise.resolve({
-      id: userId,
-      email: 'a@b.com',
-      role: 'USER',
-      displayName: 'Alex',
-      nickname: 'alex',
-      passwordHash: 'hashed',
-      avatarUrl: url,
-      isBlocked: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })),
+    getRandomDefaultAvatar: jest
+      .fn()
+      .mockReturnValue(
+        'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/default1.svg',
+      ),
+    updateAvatarUrl: jest.fn().mockImplementation((userId, url) =>
+      Promise.resolve({
+        id: userId,
+        email: 'a@b.com',
+        role: 'USER',
+        displayName: 'Alex',
+        nickname: 'alex',
+        passwordHash: 'hashed',
+        avatarUrl: url,
+        isBlocked: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    ),
   };
 
   const mockJwtService = {
@@ -291,7 +297,9 @@ describe('AuthService', () => {
     it('should no-op silently when the email is unknown', async () => {
       mockUsersService.findByEmail.mockResolvedValue(null);
 
-      await expect(service.forgotPassword('nope@b.com')).resolves.toBeUndefined();
+      await expect(
+        service.forgotPassword('nope@b.com'),
+      ).resolves.toBeUndefined();
 
       expect(mockRedisService.set).not.toHaveBeenCalled();
       expect(mockEmailService.sendPasswordResetEmail).not.toHaveBeenCalled();
@@ -314,9 +322,9 @@ describe('AuthService', () => {
     it('should throw UnauthorizedException when the token is invalid/expired', async () => {
       mockRedisService.get.mockResolvedValue(null);
 
-      await expect(service.resetPassword('bad-token', 'NewPw1!')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.resetPassword('bad-token', 'NewPw1!'),
+      ).rejects.toThrow(UnauthorizedException);
       expect(mockUsersService.updatePassword).not.toHaveBeenCalled();
     });
 
@@ -327,7 +335,9 @@ describe('AuthService', () => {
       await expect(service.resetPassword('tok', 'NewPw1!')).rejects.toThrow(
         UnauthorizedException,
       );
-      expect(mockRedisService.del).toHaveBeenCalledWith('auth:password-reset:tok');
+      expect(mockRedisService.del).toHaveBeenCalledWith(
+        'auth:password-reset:tok',
+      );
       expect(mockRedisService.del).toHaveBeenCalledWith(
         'auth:password-reset-active:u1',
       );
@@ -344,7 +354,9 @@ describe('AuthService', () => {
       await expect(service.resetPassword('tok', 'NewPw1!')).rejects.toThrow(
         UnauthorizedException,
       );
-      expect(mockRedisService.del).toHaveBeenCalledWith('auth:password-reset:tok');
+      expect(mockRedisService.del).toHaveBeenCalledWith(
+        'auth:password-reset:tok',
+      );
       expect(mockRedisService.del).toHaveBeenCalledWith(
         'auth:password-reset-active:u1',
       );
@@ -357,11 +369,16 @@ describe('AuthService', () => {
 
       await service.resetPassword('tok', 'NewPw1!');
 
-      expect(mockRedisService.del).toHaveBeenCalledWith('auth:password-reset:tok');
+      expect(mockRedisService.del).toHaveBeenCalledWith(
+        'auth:password-reset:tok',
+      );
       expect(mockRedisService.del).toHaveBeenCalledWith(
         'auth:password-reset-active:u1',
       );
-      expect(mockUsersService.updatePassword).toHaveBeenCalledWith('u1', 'NewPw1!');
+      expect(mockUsersService.updatePassword).toHaveBeenCalledWith(
+        'u1',
+        'NewPw1!',
+      );
       // sessions invalidated: refresh session dropped + access tokens revoked
       expect(mockRedisService.del).toHaveBeenCalledWith('user:session:u1');
       expect(mockRedisService.set).toHaveBeenCalledWith(
@@ -400,9 +417,9 @@ describe('AuthService', () => {
       );
       await service.forgotPassword('a@b.com');
 
-      await expect(
-        service.resetPassword(oldToken, 'NewPw1!'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.resetPassword(oldToken, 'NewPw1!')).rejects.toThrow(
+        UnauthorizedException,
+      );
       expect(mockUsersService.updatePassword).not.toHaveBeenCalled();
     });
   });
@@ -515,7 +532,9 @@ describe('AuthService', () => {
         ...userEntity,
         isVerified: false,
       });
-      mockJwtService.signAsync.mockReset().mockResolvedValueOnce('verify-token');
+      mockJwtService.signAsync
+        .mockReset()
+        .mockResolvedValueOnce('verify-token');
 
       await service.resendVerificationEmail('a@b.com', 'ru');
 

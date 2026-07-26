@@ -221,7 +221,9 @@ export class UsersService {
         if (oldFilename) {
           const oldS3Key = `avatars/${oldFilename}`;
           await this.s3Service.deleteFile(oldS3Key).catch((err) => {
-            this.logger.warn(`Failed to delete old avatar ${oldS3Key}: ${err.message}`);
+            this.logger.warn(
+              `Failed to delete old avatar ${oldS3Key}: ${err.message}`,
+            );
           });
         }
       }

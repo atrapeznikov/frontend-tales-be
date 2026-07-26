@@ -78,21 +78,45 @@ describe('QuickActionsController', () => {
   describe('confirm', () => {
     it('should return error HTML if token verify fails', async () => {
       mockJwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
-      await controller.confirm(mockResponse, 'delete-comment', 'invalid-token', 'art-1', 'comm-1', undefined);
+      await controller.confirm(
+        mockResponse,
+        'delete-comment',
+        'invalid-token',
+        'art-1',
+        'comm-1',
+        undefined,
+      );
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
-      expect(mockResponse.send).toHaveBeenCalledWith(expect.stringContaining('Ссылка недействительна'));
+      expect(mockResponse.send).toHaveBeenCalledWith(
+        expect.stringContaining('Ссылка недействительна'),
+      );
     });
 
     it('should render confirmation page for block-user', async () => {
       const payload = { action: 'block-user', userId: 'u1' };
       mockJwtService.verifyAsync.mockResolvedValue(payload);
-      mockPrismaService.user.findUnique.mockResolvedValue({ id: 'u1', displayName: 'Alex', email: 'a@b.com' });
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'u1',
+        displayName: 'Alex',
+        email: 'a@b.com',
+      });
 
-      await controller.confirm(mockResponse, 'block-user', 'token', undefined, undefined, 'u1');
+      await controller.confirm(
+        mockResponse,
+        'block-user',
+        'token',
+        undefined,
+        undefined,
+        'u1',
+      );
 
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.OK);
-      expect(mockResponse.send).toHaveBeenCalledWith(expect.stringContaining('Блокировка пользователя'));
-      expect(mockResponse.send).toHaveBeenCalledWith(expect.stringContaining('Alex'));
+      expect(mockResponse.send).toHaveBeenCalledWith(
+        expect.stringContaining('Блокировка пользователя'),
+      );
+      expect(mockResponse.send).toHaveBeenCalledWith(
+        expect.stringContaining('Alex'),
+      );
     });
 
     it('should HTML-escape a malicious displayName to prevent stored XSS', async () => {
@@ -104,7 +128,14 @@ describe('QuickActionsController', () => {
         email: '"><script>alert(2)</script>',
       });
 
-      await controller.confirm(mockResponse, 'block-user', 'token', undefined, undefined, 'u1');
+      await controller.confirm(
+        mockResponse,
+        'block-user',
+        'token',
+        undefined,
+        undefined,
+        'u1',
+      );
 
       const html = (mockResponse.send as jest.Mock).mock.calls[0][0] as string;
       expect(html).not.toContain('<img src=x onerror=alert(1)>');
@@ -119,7 +150,14 @@ describe('QuickActionsController', () => {
       const payload = { action: 'block-user', userId: 'u1', jti: 'jti-1' };
       mockJwtService.verifyAsync.mockResolvedValue(payload);
 
-      await controller.execute(mockResponse, 'block-user', 'token', undefined, undefined, 'u1');
+      await controller.execute(
+        mockResponse,
+        'block-user',
+        'token',
+        undefined,
+        undefined,
+        'u1',
+      );
 
       expect(mockRedisClient.set).toHaveBeenCalledWith(
         'action:used:jti-1',
@@ -130,7 +168,9 @@ describe('QuickActionsController', () => {
       );
       expect(mockUsersService.blockUser).toHaveBeenCalledWith('u1');
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.OK);
-      expect(mockResponse.send).toHaveBeenCalledWith(expect.stringContaining('Пользователь был заблокирован'));
+      expect(mockResponse.send).toHaveBeenCalledWith(
+        expect.stringContaining('Пользователь был заблокирован'),
+      );
     });
 
     it('should reject a replayed token whose jti was already consumed', async () => {
@@ -139,7 +179,14 @@ describe('QuickActionsController', () => {
       // Redis SET NX returns null when the key already exists (replay).
       mockRedisClient.set.mockResolvedValueOnce(null);
 
-      await controller.execute(mockResponse, 'block-user', 'token', undefined, undefined, 'u1');
+      await controller.execute(
+        mockResponse,
+        'block-user',
+        'token',
+        undefined,
+        undefined,
+        'u1',
+      );
 
       expect(mockUsersService.blockUser).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);

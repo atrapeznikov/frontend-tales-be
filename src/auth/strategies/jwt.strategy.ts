@@ -42,7 +42,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     // Enforce hard logout: reject access tokens issued before the user's
     // revocation cutoff (set on logout).
-    const revokeBefore = await this.redisService.get(tokenRevokeKey(payload.sub));
+    const revokeBefore = await this.redisService.get(
+      tokenRevokeKey(payload.sub),
+    );
     if (revokeBefore && payload.iat && payload.iat < Number(revokeBefore)) {
       throw new UnauthorizedException('Token has been revoked');
     }

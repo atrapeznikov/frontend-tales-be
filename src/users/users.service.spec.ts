@@ -49,7 +49,11 @@ describe('UsersService', () => {
   };
 
   const mockS3Service = {
-    uploadFile: jest.fn().mockResolvedValue('https://s3.twcstorage.ru/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/test.png'),
+    uploadFile: jest
+      .fn()
+      .mockResolvedValue(
+        'https://s3.twcstorage.ru/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/test.png',
+      ),
     deleteFile: jest.fn().mockResolvedValue(undefined),
   };
 
@@ -379,7 +383,9 @@ describe('UsersService', () => {
       const user = { id: 'u1', role: 'ADMIN' };
       mockPrisma.user.findUnique.mockResolvedValue(user);
 
-      await expect(service.blockUser('u1')).rejects.toThrow(BadRequestException);
+      await expect(service.blockUser('u1')).rejects.toThrow(
+        BadRequestException,
+      );
       expect(mockPrisma.user.update).not.toHaveBeenCalled();
     });
   });
@@ -473,7 +479,11 @@ describe('UsersService', () => {
     it('should upload avatar to S3 and save CDN URL in DB', async () => {
       const user = { id: 'u1', email: 'a@b.com' };
       mockPrisma.user.findUnique.mockResolvedValue(user);
-      mockPrisma.user.update.mockResolvedValue({ ...user, avatarUrl: 'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-12345.png' });
+      mockPrisma.user.update.mockResolvedValue({
+        ...user,
+        avatarUrl:
+          'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-12345.png',
+      });
 
       const file = {
         originalname: 'my-avatar.png',
@@ -499,10 +509,15 @@ describe('UsersService', () => {
       const user = {
         id: 'u1',
         email: 'a@b.com',
-        avatarUrl: 'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-old.png',
+        avatarUrl:
+          'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-old.png',
       };
       mockPrisma.user.findUnique.mockResolvedValue(user);
-      mockPrisma.user.update.mockResolvedValue({ ...user, avatarUrl: 'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-new.png' });
+      mockPrisma.user.update.mockResolvedValue({
+        ...user,
+        avatarUrl:
+          'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-new.png',
+      });
 
       const file = {
         originalname: 'my-avatar.png',
@@ -512,17 +527,24 @@ describe('UsersService', () => {
 
       await service.updateAvatar('u1', file);
 
-      expect(mockS3Service.deleteFile).toHaveBeenCalledWith('avatars/u1-old.png');
+      expect(mockS3Service.deleteFile).toHaveBeenCalledWith(
+        'avatars/u1-old.png',
+      );
     });
 
     it('should NOT delete the old avatar from S3 if it was a default avatar', async () => {
       const user = {
         id: 'u1',
         email: 'a@b.com',
-        avatarUrl: 'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/default3.svg',
+        avatarUrl:
+          'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/default3.svg',
       };
       mockPrisma.user.findUnique.mockResolvedValue(user);
-      mockPrisma.user.update.mockResolvedValue({ ...user, avatarUrl: 'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-new.png' });
+      mockPrisma.user.update.mockResolvedValue({
+        ...user,
+        avatarUrl:
+          'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-new.png',
+      });
 
       const file = {
         originalname: 'my-avatar.png',
@@ -542,7 +564,11 @@ describe('UsersService', () => {
         avatarUrl: 'https://lh3.googleusercontent.com/a/some-photo',
       };
       mockPrisma.user.findUnique.mockResolvedValue(user);
-      mockPrisma.user.update.mockResolvedValue({ ...user, avatarUrl: 'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-new.png' });
+      mockPrisma.user.update.mockResolvedValue({
+        ...user,
+        avatarUrl:
+          'https://frontendtales.ru/assets/806c1391-211a9e5f-91c1-412a-b689-4740a680b06e/avatars/u1-new.png',
+      });
 
       const file = {
         originalname: 'my-avatar.png',

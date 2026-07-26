@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3';
 
 @Injectable()
 export class S3Service {
@@ -12,8 +16,12 @@ export class S3Service {
     const endpoint = this.configService.get<string>('S3_ENDPOINT');
     const region = this.configService.get<string>('S3_REGION');
     const accessKeyId = this.configService.get<string>('S3_ACCESS_KEY_ID');
-    const secretAccessKey = this.configService.get<string>('S3_SECRET_ACCESS_KEY');
-    this.bucket = this.configService.get<string>('S3_BUCKET') || '806c1391-211a9e5f-91c1-412a-b689-4740a680b06e';
+    const secretAccessKey = this.configService.get<string>(
+      'S3_SECRET_ACCESS_KEY',
+    );
+    this.bucket =
+      this.configService.get<string>('S3_BUCKET') ||
+      '806c1391-211a9e5f-91c1-412a-b689-4740a680b06e';
 
     this.s3Client = new S3Client({
       endpoint,
@@ -49,7 +57,10 @@ export class S3Service {
       return `${endpoint}/${this.bucket}/${key}`;
     } catch (error: any) {
       const msg = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to upload file to S3: ${msg}`, error instanceof Error ? error.stack : undefined);
+      this.logger.error(
+        `Failed to upload file to S3: ${msg}`,
+        error instanceof Error ? error.stack : undefined,
+      );
       throw error;
     }
   }
@@ -64,7 +75,10 @@ export class S3Service {
       await this.s3Client.send(command);
     } catch (error: any) {
       const msg = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to delete file from S3: ${msg}`, error instanceof Error ? error.stack : undefined);
+      this.logger.error(
+        `Failed to delete file from S3: ${msg}`,
+        error instanceof Error ? error.stack : undefined,
+      );
       throw error;
     }
   }

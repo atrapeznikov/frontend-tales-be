@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Query, Body, Res, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Query,
+  Body,
+  Res,
+  HttpStatus,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -55,13 +63,18 @@ export class QuickActionsController {
     @Query('userId') userId?: string,
   ) {
     const secret = this.getActionTokenSecret();
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
+    const frontendUrl = this.configService.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:3001',
+    );
 
     try {
       const payload = await this.jwtService.verifyAsync(token, { secret });
 
       if (payload.action !== action) {
-        return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .send(this.getErrorHtml(frontendUrl));
       }
 
       let targetDetailsHtml = '';
@@ -70,8 +83,15 @@ export class QuickActionsController {
       let btnClass = '';
 
       if (action === 'delete-comment') {
-        if (!commentId || !articleId || payload.commentId !== commentId || payload.articleId !== articleId) {
-          return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
+        if (
+          !commentId ||
+          !articleId ||
+          payload.commentId !== commentId ||
+          payload.articleId !== articleId
+        ) {
+          return res
+            .status(HttpStatus.BAD_REQUEST)
+            .send(this.getErrorHtml(frontendUrl));
         }
 
         const comment = await this.prisma.comment.findUnique({
@@ -98,7 +118,9 @@ export class QuickActionsController {
         btnClass = 'delete-comment';
       } else if (action === 'block-user') {
         if (!userId || payload.userId !== userId) {
-          return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
+          return res
+            .status(HttpStatus.BAD_REQUEST)
+            .send(this.getErrorHtml(frontendUrl));
         }
 
         const user = await this.prisma.user.findUnique({
@@ -106,7 +128,9 @@ export class QuickActionsController {
         });
 
         if (!user) {
-          return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
+          return res
+            .status(HttpStatus.BAD_REQUEST)
+            .send(this.getErrorHtml(frontendUrl));
         }
 
         targetDetailsHtml = `
@@ -121,7 +145,9 @@ export class QuickActionsController {
         btnText = 'Да, заблокировать пользователя';
         btnClass = 'block-user';
       } else {
-        return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .send(this.getErrorHtml(frontendUrl));
       }
 
       const html = `
@@ -173,7 +199,9 @@ export class QuickActionsController {
       return res.status(HttpStatus.OK).send(html);
     } catch (error) {
       res.setHeader('Content-Type', 'text/html');
-      return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
+      return res
+        .status(HttpStatus.BAD_REQUEST)
+        .send(this.getErrorHtml(frontendUrl));
     }
   }
 
@@ -188,14 +216,19 @@ export class QuickActionsController {
     @Body('userId') userId?: string,
   ) {
     const secret = this.getActionTokenSecret();
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
+    const frontendUrl = this.configService.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:3001',
+    );
 
     try {
       const payload = await this.jwtService.verifyAsync(token, { secret });
 
       if (payload.action !== action) {
         res.setHeader('Content-Type', 'text/html');
-        return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .send(this.getErrorHtml(frontendUrl));
       }
 
       // Single-use enforcement: consume the token's jti so it can't be replayed.
@@ -203,15 +236,24 @@ export class QuickActionsController {
       const consumed = await this.consumeJti(payload.jti);
       if (!consumed) {
         res.setHeader('Content-Type', 'text/html');
-        return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .send(this.getErrorHtml(frontendUrl));
       }
 
       let successMessage = '';
 
       if (action === 'delete-comment') {
-        if (!commentId || !articleId || payload.commentId !== commentId || payload.articleId !== articleId) {
+        if (
+          !commentId ||
+          !articleId ||
+          payload.commentId !== commentId ||
+          payload.articleId !== articleId
+        ) {
           res.setHeader('Content-Type', 'text/html');
-          return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
+          return res
+            .status(HttpStatus.BAD_REQUEST)
+            .send(this.getErrorHtml(frontendUrl));
         }
 
         await this.commentsService.deleteComment(articleId, commentId);
@@ -219,21 +261,30 @@ export class QuickActionsController {
       } else if (action === 'block-user') {
         if (!userId || payload.userId !== userId) {
           res.setHeader('Content-Type', 'text/html');
-          return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
+          return res
+            .status(HttpStatus.BAD_REQUEST)
+            .send(this.getErrorHtml(frontendUrl));
         }
 
         await this.usersService.blockUser(userId);
-        successMessage = 'Пользователь был заблокирован, его активная сессия отозвана.';
+        successMessage =
+          'Пользователь был заблокирован, его активная сессия отозвана.';
       } else {
         res.setHeader('Content-Type', 'text/html');
-        return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .send(this.getErrorHtml(frontendUrl));
       }
 
       res.setHeader('Content-Type', 'text/html');
-      return res.status(HttpStatus.OK).send(this.getSuccessHtml(successMessage, frontendUrl));
+      return res
+        .status(HttpStatus.OK)
+        .send(this.getSuccessHtml(successMessage, frontendUrl));
     } catch (error) {
       res.setHeader('Content-Type', 'text/html');
-      return res.status(HttpStatus.BAD_REQUEST).send(this.getErrorHtml(frontendUrl));
+      return res
+        .status(HttpStatus.BAD_REQUEST)
+        .send(this.getErrorHtml(frontendUrl));
     }
   }
 

@@ -247,7 +247,10 @@ describe('ArticlesController', () => {
 
       const result = await controller.getSavedArticles('u1', 'en');
 
-      expect(mockArticlesService.getSavedArticles).toHaveBeenCalledWith('u1', 'en');
+      expect(mockArticlesService.getSavedArticles).toHaveBeenCalledWith(
+        'u1',
+        'en',
+      );
       expect(result).toEqual([{ id: 'a1' }]);
     });
   });

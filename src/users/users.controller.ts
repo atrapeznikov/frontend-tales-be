@@ -14,7 +14,12 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/index.js';
 
 @ApiTags('users')
@@ -69,7 +74,10 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Block a user (Admin only)' })
   @ApiResponse({ status: 200, description: 'User successfully blocked' })
-  @ApiResponse({ status: 400, description: 'Invalid user ID or user is an admin' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid user ID or user is an admin',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden (not an admin)' })
   @ApiResponse({ status: 404, description: 'User not found' })

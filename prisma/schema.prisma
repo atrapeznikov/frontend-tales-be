@@ -23,6 +23,16 @@ enum ContentStatus {
   PUBLISHED
 }
 
+enum BookLanguage {
+  RU
+  EN
+}
+
+enum BookStatus {
+  RECOMMENDED
+  NOT_RECOMMENDED
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique
@@ -245,6 +255,27 @@ model RoadmapItemTranslation {
   @@unique([itemId, language])
   @@index([language])
   @@map("roadmap_item_translations")
+}
+
+// ─── Books ──────────────────────────────────────────────────────────────────
+
+model Book {
+  id            String       @id @default(uuid()) @db.Uuid
+  title         String
+  author        String
+  description   String?      @db.Text
+  coverUrl      String?      @map("cover_url")
+  language      BookLanguage
+  status        BookStatus   @default(RECOMMENDED)
+  rating        Int?
+  reviewText    String?      @db.Text @map("review_text")
+  tags          String[]     @default([])
+  purchaseLinks String[]     @default([]) @map("purchase_links")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  @@index([language, status])
+  @@map("books")
 }
 
 // ─── Comments ───────────────────────────────────────────────────────────────
