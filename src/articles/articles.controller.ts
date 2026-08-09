@@ -147,10 +147,7 @@ export class ArticlesController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   @ApiOperation({ summary: 'Toggle save article to user profile' })
-  toggleSave(
-    @Param('id') id: string,
-    @CurrentUser('id') userId: string,
-  ) {
+  toggleSave(@Param('id') id: string, @CurrentUser('id') userId: string) {
     return this.articlesService.toggleSave(id, userId);
   }
 

@@ -14,4 +14,3 @@ export interface SendMailOptions {
 export abstract class MailProvider {
   abstract send(options: SendMailOptions): Promise<void>;
 }
-

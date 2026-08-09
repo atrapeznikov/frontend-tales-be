@@ -5,11 +5,7 @@ import { UsersModule } from '../users/users.module.js';
 import { CommentsModule } from '../comments/comments.module.js';
 
 @Module({
-  imports: [
-    JwtModule.register({}),
-    UsersModule,
-    CommentsModule,
-  ],
+  imports: [JwtModule.register({}), UsersModule, CommentsModule],
   controllers: [QuickActionsController],
 })
 export class AdminModule {}

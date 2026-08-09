@@ -183,8 +183,15 @@ export class CommentsService {
       },
     });
 
-    this.sendAdminNotifications(article, comment.user, comment.id, comment.content).catch(err => {
-      this.logger.error(`Error in sendAdminNotifications for comment: ${err.message}`);
+    this.sendAdminNotifications(
+      article,
+      comment.user,
+      comment.id,
+      comment.content,
+    ).catch((err) => {
+      this.logger.error(
+        `Error in sendAdminNotifications for comment: ${err.message}`,
+      );
     });
 
     return comment;
@@ -253,8 +260,15 @@ export class CommentsService {
       },
     });
 
-    this.sendAdminNotifications(article, reply.user, reply.id, reply.content).catch(err => {
-      this.logger.error(`Error in sendAdminNotifications for reply: ${err.message}`);
+    this.sendAdminNotifications(
+      article,
+      reply.user,
+      reply.id,
+      reply.content,
+    ).catch((err) => {
+      this.logger.error(
+        `Error in sendAdminNotifications for reply: ${err.message}`,
+      );
     });
 
     return reply;
@@ -412,8 +426,17 @@ export class CommentsService {
   }
 
   private async sendAdminNotifications(
-    article: { id: string; slug: string; translations: Array<{ title: string; language: string }> },
-    author: { id: string; displayName: string; nickname?: string | null; email: string },
+    article: {
+      id: string;
+      slug: string;
+      translations: Array<{ title: string; language: string }>;
+    },
+    author: {
+      id: string;
+      displayName: string;
+      nickname?: string | null;
+      email: string;
+    },
     commentId: string,
     content: string,
   ) {
@@ -423,9 +446,10 @@ export class CommentsService {
       });
       if (admins.length === 0) return;
 
-      const title = article.translations.find(t => t.language === 'ru')?.title 
-        || article.translations[0]?.title 
-        || 'Без названия';
+      const title =
+        article.translations.find((t) => t.language === 'ru')?.title ||
+        article.translations[0]?.title ||
+        'Без названия';
 
       for (const admin of admins) {
         await this.emailService.sendNewCommentNotification(admin.email, {
@@ -440,7 +464,9 @@ export class CommentsService {
         });
       }
     } catch (error) {
-      this.logger.error(`Failed to send new comment notifications to admins: ${error}`);
+      this.logger.error(
+        `Failed to send new comment notifications to admins: ${error}`,
+      );
     }
   }
 }

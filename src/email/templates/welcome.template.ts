@@ -31,7 +31,7 @@ export function getWelcomeEmailTemplate(data: WelcomeEmailData): {
 
   const footerMessage = isRu
     ? 'Если у вас возникнут вопросы или вы просто захотите поздороваться, смело отвечайте на это письмо.'
-    : "If you have any questions or just want to say hi, feel free to reply directly to this email.";
+    : 'If you have any questions or just want to say hi, feel free to reply directly to this email.';
 
   const signOff = isRu
     ? 'С наилучшими пожеланиями,<br><strong>Команда Frontend Tales</strong>'
