@@ -60,6 +60,7 @@ async function main() {
       passwordHash: hashedPassword,
       role: 'ADMIN',
       nickname: 'e2eadmin',
+      isVerified: true,
     },
     create: {
       email,
@@ -67,6 +68,7 @@ async function main() {
       passwordHash: hashedPassword,
       role: 'ADMIN',
       nickname: 'e2eadmin',
+      isVerified: true,
     },
   });
 

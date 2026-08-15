@@ -9,6 +9,7 @@ import { UsersModule } from './users';
 import { ArticlesModule } from './articles';
 import { CommentsModule } from './comments';
 import { RoadmapModule } from './roadmap';
+import { BooksModule } from './books';
 import { EmailModule } from './email/index.js';
 import { AdminModule } from './admin/admin.module.js';
 import { JwtAuthGuard } from './auth/guards';
@@ -31,6 +32,7 @@ import { RolesGuard } from './auth/guards';
     ArticlesModule,
     CommentsModule,
     RoadmapModule,
+    BooksModule,
     AdminModule,
   ],
   providers: [

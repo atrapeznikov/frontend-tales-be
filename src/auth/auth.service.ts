@@ -156,7 +156,10 @@ export class AuthService {
 
     if (!user.avatarUrl) {
       const defaultAvatar = this.usersService.getRandomDefaultAvatar();
-      const updatedUser = await this.usersService.updateAvatarUrl(user.id, defaultAvatar);
+      const updatedUser = await this.usersService.updateAvatarUrl(
+        user.id,
+        defaultAvatar,
+      );
       return this.generateTokens(updatedUser);
     }
 
@@ -300,7 +303,8 @@ export class AuthService {
     userId: string,
     email: string,
   ): Promise<string> {
-    const expiresIn = this.configService.get<string>('JWT_VERIFY_EMAIL_EXPIRES_IN') ||
+    const expiresIn =
+      this.configService.get<string>('JWT_VERIFY_EMAIL_EXPIRES_IN') ||
       EMAIL_VERIFY_DEFAULT_EXPIRES_IN;
     const jti = uuid();
 
@@ -431,7 +435,10 @@ export class AuthService {
    * Parses a JWT-style duration ('15m', '7d', '3600', '2h') into seconds.
    * Falls back to `fallback` for unrecognised/empty input.
    */
-  private parseDurationSeconds(value: string | undefined, fallback: number): number {
+  private parseDurationSeconds(
+    value: string | undefined,
+    fallback: number,
+  ): number {
     if (!value) return fallback;
     const match = /^(\d+)\s*([smhd])?$/.exec(value.trim());
     if (!match) return fallback;
