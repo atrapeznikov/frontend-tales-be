@@ -289,10 +289,7 @@ describe('ArticlesService', () => {
       mockPrisma.article.findMany.mockResolvedValue([]);
       mockPrisma.article.count.mockResolvedValue(0);
 
-      await service.findAll(
-        { status: ContentStatus.DRAFT } as ArticleFilterDto,
-        false,
-      );
+      await service.findAll({ status: ContentStatus.DRAFT }, false);
 
       const callArg = mockPrisma.article.findMany.mock.calls[0][0];
       expect(callArg.where.status).toBe('PUBLISHED');
@@ -303,7 +300,7 @@ describe('ArticlesService', () => {
       mockPrisma.article.findMany.mockResolvedValue([]);
       mockPrisma.article.count.mockResolvedValue(0);
 
-      await service.findAll({ tag: 'js' } as ArticleFilterDto, true);
+      await service.findAll({ tag: 'js' }, true);
 
       const callArg = mockPrisma.article.findMany.mock.calls[0][0];
       expect(callArg.where.tags).toEqual({ some: { slug: 'js' } });
@@ -314,7 +311,7 @@ describe('ArticlesService', () => {
       mockPrisma.article.findMany.mockResolvedValue([]);
       mockPrisma.article.count.mockResolvedValue(0);
 
-      await service.findAll({ language: 'ru' } as ArticleFilterDto, true);
+      await service.findAll({ language: 'ru' }, true);
 
       const callArg = mockPrisma.article.findMany.mock.calls[0][0];
       expect(callArg.where.translations).toEqual({ some: { language: 'ru' } });
@@ -328,7 +325,7 @@ describe('ArticlesService', () => {
       mockPrisma.article.findMany.mockResolvedValue([]);
       mockPrisma.article.count.mockResolvedValue(0);
 
-      const result = await service.findAll({} as ArticleFilterDto, true);
+      const result = await service.findAll({}, true);
 
       expect(mockPrisma.article.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 0, take: 10 }),
@@ -435,7 +432,7 @@ describe('ArticlesService', () => {
 
       const result = await service.update('a1', {
         slug: 'old',
-      } as UpdateArticleDto);
+      });
 
       expect(mockPrisma.article.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: 'a1' } }),
@@ -623,7 +620,7 @@ describe('ArticlesService', () => {
       mockPrisma.articleReaction.delete.mockResolvedValue({ id: 'r1' });
 
       const result = await service.toggleReaction('a1', 'u1', {
-        type: 'LIKE' as any,
+        type: 'LIKE',
       });
 
       expect(mockPrisma.articleReaction.findUnique).toHaveBeenCalledWith({
@@ -654,7 +651,7 @@ describe('ArticlesService', () => {
       });
 
       const result = await service.toggleReaction('a1', 'u1', {
-        type: 'LIKE' as any,
+        type: 'LIKE',
       });
 
       expect(mockPrisma.articleReaction.create).toHaveBeenCalledWith({
