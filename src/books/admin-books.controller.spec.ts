@@ -31,7 +31,7 @@ describe('AdminBooksController', () => {
       const dto: CreateBookDto = {
         title: 'Title',
         author: 'Author',
-        language: 'EN' as any,
+        language: 'EN',
       };
       const created = { id: 'b1' };
       mockBooksService.create.mockResolvedValue(created);
